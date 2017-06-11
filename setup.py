@@ -3,6 +3,8 @@ import sys, os
 
 version = '0.1'
 
+tests_require = ['django-setuptest']
+
 setup(name='django-rest-json-api',
       version=version,
       description="JSON API implementation for Django Rest Framework",
@@ -20,6 +22,9 @@ setup(name='django-rest-json-api',
       install_requires=[
           'Django',
       ],
+      test_suite='setuptest.setuptest.SetupTestSuite',
+      tests_require=tests_require,
+      extras_require=dict(tests=tests_require),
       entry_points="""
       # -*- Entry points: -*-
       """,
