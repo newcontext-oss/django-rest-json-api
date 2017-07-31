@@ -30,6 +30,7 @@ setup(name='django-rest-json-api',
       packages=find_packages(exclude=['ez_setup', 'examples', 'tests']),
       include_package_data=True,
       zip_safe=False,
+      setup_requires=['setuptools-git'],
       install_requires=[
           'Django', 'djangorestframework',
       ],
