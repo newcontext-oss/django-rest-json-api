@@ -121,11 +121,18 @@ class JSONAPIRelationshipsSerializer(serializers.DictField):
         data_field = collection_child.fields['data']
         collection_child.fields['data'] = type(data_field)(
             *data_field._args, many=True, **data_field._kwargs)
-        for key, value in data.items():
+        for relationship_name, relationship_resource in data.items():
             child = self.child
-            if isinstance(value.get('data', {}), collections.abc.Sequence):
+            if (
+                    isinstance(
+                        relationship_resource,
+                        collections.abc.Mapping) and
+                    isinstance(
+                        relationship_resource.get('data', {}),
+                        collections.abc.Sequence)):
                 child = collection_child
-            value[six.text_type(key)] = child.run_validation(value)
+            value[six.text_type(relationship_name)] = child.run_validation(
+                relationship_resource)
         return value
 
 
@@ -134,6 +141,8 @@ class JSONAPIRelationshipSerializer(
     """
     Serializer for a JSON API relationship object.
     """
+
+    MUST_HAVE_ONE_OF = ('links', 'data', 'meta')
 
     data = JSONAPIResourceIdentifierSerializer(
         label='Resource', help_text='the document\'s "primary data"',
@@ -149,7 +158,7 @@ class JSONAPIRelationshipSerializer(
         """
         JSON API relationship validation.
         """
-        if not set(attrs).intersection(('links', 'data', 'meta')):
+        if not set(attrs).intersection(self.MUST_HAVE_ONE_OF):
             self.fail('missing_must')
         return attrs
 
@@ -163,7 +172,7 @@ class JSONAPIResourceSerializer(
 
     default_error_messages = {
         'reserved_field': (
-            'A resource can not have {member!r} fields named: {fields!r}.'),
+            'A resource can not have {member!r} fields named: {fields}.'),
         'field_conflicts': (
             'A resource can not have `attributes` and `relationships` '
             'with the same name: {fields}.'),
@@ -194,8 +203,9 @@ class JSONAPIResourceSerializer(
             reserved = keys.intersection(('type', 'id'))
             if reserved:
                 try:
-                    self.fail('reserved_field', member=member, fields=[
-                        repr(field) for field in reserved])
+                    self.fail(
+                        'reserved_field', member=member,
+                        fields=', '.join(repr(field) for field in reserved))
                 except exceptions.ValidationError as exc:
                     errors[member] = exc.detail
                     continue
@@ -203,10 +213,10 @@ class JSONAPIResourceSerializer(
         conflicts = keys.intersection(('type', 'id'))
         if conflicts:
             try:
-                self.fail('field_conflicts', fields=[
-                    repr(field) for field in conflicts])
+                self.fail('field_conflicts', fields=', '.join(repr(
+                    field) for field in conflicts))
             except exceptions.ValidationError as exc:
-                errors['attributes'] = exc.detail
+                errors["attributes"] = exc.detail
 
         if errors:
             raise exceptions.ValidationError(errors)
@@ -315,7 +325,7 @@ class JSONAPIDocumentSerializer(
         'included_wo_data': (
             'If a document does not contain a top-level data key, '
             'the included member MUST NOT be present either.'),
-        'duplicate_included': (
+        'duplicate_resource': (
             'A document MUST NOT include more than one resource object '
             'for each type ({type!r}) and id ({id!r}) pair, '
             'duplicate found in {member!r}.'),
@@ -367,30 +377,30 @@ class JSONAPIDocumentSerializer(
             try:
                 self.fail('errors_and_data')
             except exceptions.ValidationError as exc:
-                errors['attributes'] = exc.detail
+                errors["attributes"] = exc.detail
         if not ('data' in attrs or 'errors' in attrs or 'meta' in attrs):
             try:
                 self.fail('missing_must')
             except exceptions.ValidationError as exc:
-                errors['attributes'] = exc.detail
+                errors["attributes"] = exc.detail
 
         if 'included' in attrs and 'data' not in attrs:
             try:
                 self.fail('included_wo_data')
             except exceptions.ValidationError as exc:
-                errors['attributes'] = exc.detail
+                errors["attributes"] = exc.detail
         resource_ids = set()
-        data = attrs.get('data', {})
+        data = attrs.get('data', [])
         if not isinstance(data, collections.abc.Sequence):
             data = [data]
         for member, resources in (
                 ('data', data), ('included', attrs.get('included', []))):
             for resource in resources:
-                type_id = (resource['type'], resource['id'])
+                type_id = (resource["type"], resource["id"])
                 if type_id in resource_ids:
                     try:
                         self.fail(
-                            'duplicate_included',
+                            'duplicate_resource',
                             member=member, type=type_id[0], id=type_id[1])
                     except exceptions.ValidationError as exc:
                         errors['/{0}/{1}/{2}'.format(
