@@ -1,15 +1,15 @@
 from setuptools import setup, find_packages
-import sys, os
+import os
 
 version = '0.1'
 
-tests_require = ['django-setuptest']
+tests_require = ['test-har', 'django-setuptest']
 
 setup(name='django-rest-json-api',
       version=version,
       description="JSON API implementation for Django Rest Framework",
-      long_description="""\
-""",
+      long_description=open(os.path.join(
+          os.path.dirname(__file__), 'README.rst')).read(),
       classifiers=[], # Get strings from http://pypi.python.org/pypi?%3Aaction=list_classifiers
       keywords='rest django json json-api drf',
       author='Ross Patterson',
@@ -20,7 +20,7 @@ setup(name='django-rest-json-api',
       include_package_data=True,
       zip_safe=False,
       install_requires=[
-          'Django',
+          'Django', 'djangorestframework',
       ],
       test_suite='setuptest.setuptest.SetupTestSuite',
       tests_require=tests_require,
