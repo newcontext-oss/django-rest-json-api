@@ -12,7 +12,7 @@ from rest_framework import serializers
 from rest_framework.utils import html
 
 link_url_field = serializers.URLField(
-    label='Link URL', help_text='a string containing the link’s URL',
+    label='Link URL', help_text="a string containing the link's URL",
     required=True)
 
 
@@ -49,7 +49,7 @@ class JSONAPILinkSerializer(JSONAPIMetaContainerSerializer):
     """
 
     href = serializers.URLField(
-        label='Link URL', help_text="a string containing the link’s URL.",
+        label='Link URL', help_text="a string containing the link's URL.",
         required=True)
 
     def to_internal_value(self, data):
@@ -182,7 +182,7 @@ class JSONAPIResourceSerializer(
     # members:
     attributes = serializers.DictField(
         label='Resource Attributes',
-        help_text='an object representing some of the resource’s data.',
+        help_text="an object representing some of the resource's data.",
         required=False)
     relationships = JSONAPIRelationshipsSerializer(
         label='Related Resources',
@@ -288,8 +288,8 @@ class JSONAPIErrorSerializer(JSONAPIMetaContainerSerializer):
         required=False)
     detail = serializers.CharField(
         label='Error Detail',
-        help_text='a human-readable explanation specific to this occurrence '
-        'of the problem. Like title, this field’s value can be localized.',
+        help_text="a human-readable explanation specific to this occurrence "
+        "of the problem. Like title, this field's value can be localized.",
         required=False)
     source = JSONAPIErrorSourceSerializer(
         label='Error Source',
