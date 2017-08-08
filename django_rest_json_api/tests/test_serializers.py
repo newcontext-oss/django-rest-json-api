@@ -165,3 +165,16 @@ class DRFJSONAPISerializerTests(test_har.HARTestCase):
             'must not include more than one resource',
             cm.exception.detail["/included/articles/1"][0].lower(),
             'Wrong `errors` with `data` validation error')
+
+    def test_errors(self):
+        """
+        The document serializer handles JSON API errors objects.
+        """
+        self.setUpHAR('error.api+json.har.json')
+        articles_jsonapi = self.entry["response"]["content"]["text"]
+        document_serializer = serializers.JSONAPIDocumentSerializer(
+            data=articles_jsonapi)
+        document_serializer.is_valid(raise_exception=True)
+        self.assertIn(
+            "errors", document_serializer.validated_data,
+            'Validated data missing JSON API errors array.')

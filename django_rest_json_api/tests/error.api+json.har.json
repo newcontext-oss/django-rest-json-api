@@ -1,0 +1,48 @@
+{
+  "log": {
+    "version": "1.2",
+    "entries": [
+      {
+        "request": {
+          "method": "POST",
+          "url": "/articles",
+          "headers" : [
+            {
+              "name": "Content-Type",
+              "value": "application/vnd.api+json"
+            }
+          ],
+          "postData": {
+            "mimeType": "application/vnd.api+json",
+            "text" : {
+              "data": {
+                "type": "articles",
+                "attributes": {
+                  "title": "Foo"
+                }
+              }
+            }
+          },
+          "comment" : "Test validation errors"
+        },
+        "response": {
+          "status": 422,
+          "statusText": "Unprocessable Entity",
+          "content": {
+            "mimeType": "application/vnd.api+json",
+            "text": {
+              "errors": [
+                {
+                  "status": "422",
+                  "source": { "pointer": "/data/attributes/title" },
+                  "title":  "Invalid Attribute",
+                  "detail": "Title name must contain at least three characters."
+                }
+              ]
+            }
+          }
+        }
+      }
+    ]
+  }
+}
