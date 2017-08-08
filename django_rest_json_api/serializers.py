@@ -2,8 +2,12 @@
 DRF serializers implementing the various JSON API objects.
 """
 
-import collections.abc
 import collections
+try:
+    from collections import abc as collections_abc
+except ImportError:  # pragma: no cover
+    # BBB Python 2 compat
+    collections_abc = collections
 
 from django.utils import six
 
@@ -56,7 +60,7 @@ class JSONAPILinkSerializer(JSONAPIMetaContainerSerializer):
         """
         Optionally accept a URL directly.
         """
-        if not isinstance(data, collections.abc.Mapping):
+        if not isinstance(data, collections_abc.Mapping):
             return link_url_field.to_internal_value(data)
         return super(JSONAPILinkSerializer, self).to_internal_value(data)
 
@@ -126,10 +130,10 @@ class JSONAPIRelationshipsSerializer(serializers.DictField):
             if (
                     isinstance(
                         relationship_resource,
-                        collections.abc.Mapping) and
+                        collections_abc.Mapping) and
                     isinstance(
                         relationship_resource.get('data', {}),
-                        collections.abc.Sequence)):
+                        collections_abc.Sequence)):
                 child = collection_child
             value[six.text_type(relationship_name)] = child.run_validation(
                 relationship_resource)
@@ -362,7 +366,7 @@ class JSONAPIDocumentSerializer(
         super(JSONAPIDocumentSerializer, self).__init__(
             instance=instance, data=data, **kwargs)
 
-        if isinstance(data.get('data', {}), collections.abc.Sequence):
+        if isinstance(data.get('data', {}), collections_abc.Sequence):
             data_field = self.fields['data']
             self.fields['data'] = type(data_field)(
                 *data_field._args, many=True, **data_field._kwargs)
@@ -391,7 +395,7 @@ class JSONAPIDocumentSerializer(
                 errors["attributes"] = exc.detail
         resource_ids = set()
         data = attrs.get('data', [])
-        if not isinstance(data, collections.abc.Sequence):
+        if not isinstance(data, collections_abc.Sequence):
             data = [data]
         for member, resources in (
                 ('data', data), ('included', attrs.get('included', []))):
