@@ -361,15 +361,27 @@ class JSONAPIDocumentSerializer(
 
     def __init__(self, instance=None, data=serializers.empty, **kwargs):
         """
-        Handle resource collections where 'data' is an array.
+        Delegate list serializer `many=True` handling to the `data` field.
         """
         super(JSONAPIDocumentSerializer, self).__init__(
             instance=instance, data=data, **kwargs)
 
-        if isinstance(data.get('data', {}), collections_abc.Sequence):
+        json_api_many = getattr(self, '_json_api_many', None)
+        if json_api_many:
+            del self._json_api_many
             data_field = self.fields['data']
-            self.fields['data'] = type(data_field)(
-                *data_field._args, many=True, **data_field._kwargs)
+            self.fields['data'] = type(data_field).many_init(
+                *data_field._args, **data_field._kwargs)
+
+    @classmethod
+    def many_init(cls, *args, **kwargs):
+        """
+        Delegate list serializer `many=True` handling to the `data` field.
+        """
+        self = super(JSONAPIDocumentSerializer, cls).__new__(
+            cls, *args, **kwargs)
+        self._json_api_many = True
+        return self
 
     def validate(self, attrs):
         """

@@ -37,7 +37,7 @@ class DRFJSONAPISerializerTests(test_har.HARTestCase):
                 for key, value in articles_jsonapi[
                         "data"][0]["relationships"].items()})
         document_serializer = serializers.JSONAPIDocumentSerializer(
-            data=articles_jsonapi)
+            data=articles_jsonapi, many=True)
         document_serializer.is_valid(raise_exception=True)
 
         self.assertIn(
@@ -71,7 +71,7 @@ class DRFJSONAPISerializerTests(test_har.HARTestCase):
         articles_jsonapi["data"][0]["relationships"][
             "type"] = articles_jsonapi["data"][0]["relationships"]["author"]
         document_serializer = serializers.JSONAPIDocumentSerializer(
-            data=articles_jsonapi)
+            data=articles_jsonapi, many=True)
         with self.assertRaises(exceptions.ValidationError) as cm:
             document_serializer.is_valid(raise_exception=True)
         self.assertIn(
@@ -92,7 +92,7 @@ class DRFJSONAPISerializerTests(test_har.HARTestCase):
         articles_jsonapi["data"][0]["relationships"] = [
             articles_jsonapi["data"][0]["relationships"]]
         document_serializer = serializers.JSONAPIDocumentSerializer(
-            data=articles_jsonapi)
+            data=articles_jsonapi, many=True)
         with self.assertRaises(exceptions.ValidationError) as cm:
             document_serializer.is_valid(raise_exception=True)
         self.assertIn(
@@ -112,7 +112,7 @@ class DRFJSONAPISerializerTests(test_har.HARTestCase):
             for member in must_members:
                 relationship.pop(member, None)
         document_serializer = serializers.JSONAPIDocumentSerializer(
-            data=articles_jsonapi)
+            data=articles_jsonapi, many=True)
         with self.assertRaises(exceptions.ValidationError) as cm:
             document_serializer.is_valid(raise_exception=True)
         self.assertIn(
@@ -143,7 +143,7 @@ class DRFJSONAPISerializerTests(test_har.HARTestCase):
         articles_jsonapi = self.entry["response"]["content"]["text"]
         articles_jsonapi["errors"] = articles_jsonapi["data"]
         document_serializer = serializers.JSONAPIDocumentSerializer(
-            data=articles_jsonapi)
+            data=articles_jsonapi, many=True)
         with self.assertRaises(exceptions.ValidationError) as cm:
             document_serializer.is_valid(raise_exception=True)
         self.assertIn(
@@ -158,7 +158,7 @@ class DRFJSONAPISerializerTests(test_har.HARTestCase):
         articles_jsonapi = self.entry["response"]["content"]["text"]
         articles_jsonapi["included"].append(articles_jsonapi["data"][0])
         document_serializer = serializers.JSONAPIDocumentSerializer(
-            data=articles_jsonapi)
+            data=articles_jsonapi, many=True)
         with self.assertRaises(exceptions.ValidationError) as cm:
             document_serializer.is_valid(raise_exception=True)
         self.assertIn(
