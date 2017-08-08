@@ -40,6 +40,17 @@ class DRFJSONAPISerializerTests(test_har.HARTestCase):
             data=articles_jsonapi)
         document_serializer.is_valid(raise_exception=True)
 
+        self.assertIn(
+            "jsonapi", document_serializer.validated_data,
+            'Validated data missing JSON API implementation object.')
+        self.assertIn(
+            "version", document_serializer.validated_data["jsonapi"],
+            'Validated data missing JSON API version.')
+        self.assertEqual(
+            document_serializer.validated_data["jsonapi"]["version"],
+            articles_jsonapi["jsonapi"]["version"],
+            'Wrong validated data JSON API version.')
+
     def test_single_resource(self):
         """
         The document serializer handles a single resource instead of an array.

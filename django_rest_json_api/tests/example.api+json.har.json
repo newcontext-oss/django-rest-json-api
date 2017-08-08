@@ -20,6 +20,9 @@
           "content": {
             "mimeType": "application/vnd.api+json",
             "text": {
+              "jsonapi": {
+                "version": "1.0"
+              },
               "links": {
                 "self": "http://testserver/articles/",
                 "next": "http://testserver/articles/?page[offset]=2",
