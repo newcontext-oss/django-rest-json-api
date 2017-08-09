@@ -9,15 +9,50 @@ except ImportError:  # pragma: no cover
     # BBB Python 2 compat
     collections_abc = collections
 
-from django.utils import six
+from django.utils import functional
 
 from rest_framework import exceptions
 from rest_framework import serializers
-from rest_framework.utils import html
 
 
+class ManySerializer(serializers.Serializer):
+    """
+    Optionally use a list serializer for multiple values.
+    """
 
-class JSONAPIResourceIdentifierSerializer(serializers.Serializer):
+    @functional.cached_property
+    def many_serializer(self):
+        """
+        Construct a list serializer on-demand for multiple values.
+        """
+        return type(self).many_init(*self._args, **self._kwargs)
+
+    def to_internal_value(self, data):
+        """
+        Optionally delegate to the list serializer for multiple values.
+        """
+        if isinstance(data, collections_abc.Sequence):
+            return self.many_serializer.to_internal_value(data)
+        return super(ManySerializer, self).to_internal_value(data)
+
+    def to_representation(self, instance):
+        """
+        Optionally delegate to the list serializer for multiple values.
+        """
+        if isinstance(instance, collections_abc.Sequence):
+            return self.many_serializer.to_representation(instance)
+        return super(ManySerializer, self).to_representation(instance)
+
+    def validate(self, attrs):
+        """
+        Optionally delegate to the list serializer for multiple values.
+        """
+        if isinstance(attrs, collections_abc.Sequence):
+            return self.many_serializer.validate(attrs)
+        return super(ManySerializer, self).validate(attrs)
+
+
+class JSONAPIResourceIdentifierSerializer(ManySerializer):
     """
     Common serializer support for JSON API objects with resource identifiers.
     """
@@ -110,41 +145,6 @@ class JSONAPILinkableSerializer(serializers.Serializer):
         required=False)
 
 
-class JSONAPIRelationshipsSerializer(serializers.DictField):
-    """
-    Serializer for a JSON API relationships container object.
-    """
-
-    def to_internal_value(self, data):
-        """
-        Handle resource collections where 'data' is an array.
-        """
-        if html.is_html_input(data):
-            data = html.parse_html_dict(data)
-        if not isinstance(data, dict):
-            self.fail('not_a_dict', input_type=type(data).__name__)
-
-        value = {}
-        collection_child = type(self.child)(
-            *self.child._args, **self.child._kwargs)
-        data_field = collection_child.fields['data']
-        collection_child.fields['data'] = type(data_field)(
-            *data_field._args, many=True, **data_field._kwargs)
-        for relationship_name, relationship_resource in data.items():
-            child = self.child
-            if (
-                    isinstance(
-                        relationship_resource,
-                        collections_abc.Mapping) and
-                    isinstance(
-                        relationship_resource.get('data', {}),
-                        collections_abc.Sequence)):
-                child = collection_child
-            value[six.text_type(relationship_name)] = child.run_validation(
-                relationship_resource)
-        return value
-
-
 class JSONAPIRelationshipSerializer(
         JSONAPILinkableSerializer, JSONAPIMetaContainerSerializer):
     """
@@ -193,7 +193,7 @@ class JSONAPIResourceSerializer(
         label='Resource Attributes',
         help_text="an object representing some of the resource's data.",
         required=False)
-    relationships = JSONAPIRelationshipsSerializer(
+    relationships = serializers.DictField(
         label='Related Resources',
         help_text='a relationships object describing relationships '
         'between the resource and other JSON API resources.',
@@ -203,6 +203,10 @@ class JSONAPIResourceSerializer(
         """
         JSON API Resource validation.
         """
+        if isinstance(attrs, collections_abc.Sequence):
+            # Delegate multiple values to the list serializer
+            return self.many_serializer.validate(attrs)
+
         errors = collections.OrderedDict()
 
         attributes = set(attrs.get('attributes', {}))
@@ -364,29 +368,12 @@ class JSONAPIDocumentSerializer(
             'and/or other included resources/'),
         required=False)
 
-    def __init__(self, instance=None, data=serializers.empty, **kwargs):
+    def to_representation(self, instance):
         """
-        Delegate list serializer `many=True` handling to the `data` field.
+        Place the instance into the `data` key.
         """
-        super(JSONAPIDocumentSerializer, self).__init__(
-            instance=instance, data=data, **kwargs)
-
-        json_api_many = getattr(self, '_json_api_many', None)
-        if json_api_many:
-            del self._json_api_many
-            data_field = self.fields['data']
-            self.fields['data'] = type(data_field).many_init(
-                *data_field._args, **data_field._kwargs)
-
-    @classmethod
-    def many_init(cls, *args, **kwargs):
-        """
-        Delegate list serializer `many=True` handling to the `data` field.
-        """
-        self = super(JSONAPIDocumentSerializer, cls).__new__(
-            cls, *args, **kwargs)
-        self._json_api_many = True
-        return self
+        return super(JSONAPIDocumentSerializer, self).to_representation(
+            {"data": instance})
 
     def validate(self, attrs):
         """
