@@ -169,7 +169,7 @@ class JSONAPIRelationshipSerializer(
         """
         if not set(attrs).intersection(self.MUST_HAVE_ONE_OF):
             self.fail('missing_must')
-        return attrs
+        return super(JSONAPIRelationshipSerializer, self).validate(attrs)
 
 
 class JSONAPIResourceSerializer(
