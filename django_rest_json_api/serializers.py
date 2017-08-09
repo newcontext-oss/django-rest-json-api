@@ -53,6 +53,14 @@ class JSONAPILinkSerializer(JSONAPIMetaContainerSerializer):
         label='Link URL', help_text="a string containing the link's URL.",
         required=True)
 
+    def to_representation(self, instance):
+        """
+        Optionally return a URL directly.
+        """
+        if not isinstance(instance, collections_abc.Mapping):
+            return self.fields['href'].to_representation(instance)
+        return super(JSONAPILinkSerializer, self).to_representation(instance)
+
     def to_internal_value(self, data):
         """
         Optionally accept a URL directly.
