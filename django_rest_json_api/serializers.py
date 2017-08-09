@@ -353,7 +353,7 @@ class JSONAPIDocumentSerializer(
     jsonapi = JSONAPIImplementationSerializer(
         label='JSON API Implementation',
         help_text="an object describing the server's implementation",
-        required=False)
+        required=False, default={})
     included = serializers.ListField(
         label='Included Related Resources',
         help_text='an array of resource objects that are related '
