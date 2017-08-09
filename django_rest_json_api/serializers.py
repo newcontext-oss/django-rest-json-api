@@ -11,6 +11,8 @@ except ImportError:  # pragma: no cover
 
 from django.utils import functional
 
+from drf_extra_fields import parameterized
+
 from rest_framework import exceptions
 from rest_framework import serializers
 
@@ -62,10 +64,10 @@ class JSONAPIResourceIdentifierSerializer(ManySerializer):
         label='Resource Identifier',
         help_text='a specific identifier within this type of resource',
         required=True)
-    type = serializers.CharField(
+    type = parameterized.SerializerParameterField(
         label='Resource Type',
         help_text='the type of this resource',
-        required=True)
+        required=True, skip=False)
 
 
 class JSONAPIMetaContainerSerializer(serializers.Serializer):
@@ -404,7 +406,11 @@ class JSONAPIDocumentSerializer(
         for member, resources in (
                 ('data', data), ('included', attrs.get('included', []))):
             for resource in resources:
-                type_id = (resource["type"], resource["id"])
+                type_id = (
+                    # Lookup the type parameter from the resource type field
+                    self.fields['data'].fields['type'].parameters[
+                        type(resource["type"])],
+                    resource["id"])
                 if type_id in resource_ids:
                     try:
                         self.fail(

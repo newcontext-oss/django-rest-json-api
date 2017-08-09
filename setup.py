@@ -33,6 +33,9 @@ setup(name='django-rest-json-api',
       setup_requires=['setuptools-git'],
       install_requires=[
           'Django', 'djangorestframework',
+
+          # Format/renderer/parser using a generic serializer
+          'django-extra-fields>=0.9', 'inflection',
       ],
       test_suite='setuptest.setuptest.SetupTestSuite',
       tests_require=tests_require,
