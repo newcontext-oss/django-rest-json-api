@@ -15,9 +15,6 @@ from rest_framework import exceptions
 from rest_framework import serializers
 from rest_framework.utils import html
 
-link_url_field = serializers.URLField(
-    label='Link URL', help_text="a string containing the link's URL",
-    required=True)
 
 
 class JSONAPIResourceIdentifierSerializer(serializers.Serializer):
@@ -61,7 +58,7 @@ class JSONAPILinkSerializer(JSONAPIMetaContainerSerializer):
         Optionally accept a URL directly.
         """
         if not isinstance(data, collections_abc.Mapping):
-            return link_url_field.to_internal_value(data)
+            return self.fields['href'].to_internal_value(data)
         return super(JSONAPILinkSerializer, self).to_internal_value(data)
 
 
