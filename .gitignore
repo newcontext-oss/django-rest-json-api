@@ -3,3 +3,4 @@
 /.tox
 /coverage.xml
 /pep8.txt
+/db.sqlite3

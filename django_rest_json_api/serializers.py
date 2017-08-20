@@ -9,65 +9,198 @@ except ImportError:  # pragma: no cover
     # BBB Python 2 compat
     collections_abc = collections
 
+import pkg_resources
+
+from django.db import models
 from django.utils import functional
+
+from rest_framework.settings import api_settings
+from rest_framework import exceptions
+from rest_framework import serializers
+from rest_framework import relations
 
 from drf_extra_fields import parameterized
 
-from rest_framework import exceptions
-from rest_framework import serializers
 
-
-class ManySerializer(serializers.Serializer):
+class JSONAPIPrimaryDataSerializer(
+        parameterized.ParameterizedGenericSerializer):
     """
-    Optionally use a list serializer for multiple values.
-    """
-
-    @functional.cached_property
-    def many_serializer(self):
-        """
-        Construct a list serializer on-demand for multiple values.
-        """
-        return type(self).many_init(*self._args, **self._kwargs)
-
-    def to_internal_value(self, data):
-        """
-        Optionally delegate to the list serializer for multiple values.
-        """
-        if isinstance(data, collections_abc.Sequence):
-            return self.many_serializer.to_internal_value(data)
-        return super(ManySerializer, self).to_internal_value(data)
-
-    def to_representation(self, instance):
-        """
-        Optionally delegate to the list serializer for multiple values.
-        """
-        if isinstance(instance, collections_abc.Sequence):
-            return self.many_serializer.to_representation(instance)
-        return super(ManySerializer, self).to_representation(instance)
-
-    def validate(self, attrs):
-        """
-        Optionally delegate to the list serializer for multiple values.
-        """
-        if isinstance(attrs, collections_abc.Sequence):
-            return self.many_serializer.validate(attrs)
-        return super(ManySerializer, self).validate(attrs)
-
-
-class JSONAPIResourceIdentifierSerializer(ManySerializer):
-    """
-    Common serializer support for JSON API objects with resource identifiers.
+    Support JSON API primary `data` objects as either single or an array.
     """
 
     # A resource object MUST contain at least the following top-level members:
-    id = serializers.CharField(
+    id = serializers.UUIDField(
         label='Resource Identifier',
         help_text='a specific identifier within this type of resource',
         required=True)
     type = parameterized.SerializerParameterField(
         label='Resource Type',
         help_text='the type of this resource',
-        required=True, skip=False)
+        required=True)
+
+    @functional.cached_property
+    def many_serializer(self):
+        """
+        Construct a list serializer on-demand for multiple values.
+        """
+        many = type(self).many_init(*self._args, **self._kwargs)
+        if self.field_name is not None:
+            many.bind(self.field_name, self.parent)
+        return many
+
+    def get_value(self, dictionary):
+        """
+        Use the list serializer for multiple resources.
+        """
+        value = super(
+            JSONAPIPrimaryDataSerializer, self).get_value(dictionary)
+        if isinstance(value, collections_abc.Sequence):
+            return self.many_serializer.get_value(dictionary)
+        return value
+
+    def run_validation(self, data=serializers.empty):
+        """
+        Use the list serializer for multiple resources.
+        """
+        if isinstance(data, collections_abc.Sequence):
+            return self.many_serializer.run_validation(data)
+        return super(
+            JSONAPIPrimaryDataSerializer, self).run_validation(data)
+
+    def to_internal_value(self, data):
+        """
+        Use the list serializer for multiple resources.
+        """
+        if isinstance(data, collections_abc.Sequence):
+            return self.many_serializer.to_internal_value(data)
+        return super(
+            JSONAPIPrimaryDataSerializer, self).to_internal_value(data)
+
+    def to_representation(self, instance):
+        """
+        Use the list serializer for multiple resources.
+        """
+        if isinstance(instance, (collections_abc.Sequence, models.QuerySet)):
+            return self.many_serializer.to_representation(instance)
+        return super(
+            JSONAPIPrimaryDataSerializer, self).to_representation(
+                instance)
+
+    def validate(self, attrs):
+        """
+        Use the list serializer for multiple resources.
+        """
+        if isinstance(attrs, collections_abc.Sequence):
+            return self.many_serializer.validate(attrs)
+        return super(JSONAPIPrimaryDataSerializer, self).validate(
+            attrs)
+
+    def update(self, instance, validated_data):
+        """
+        Use the list serializer for multiple resources.
+        """
+        if isinstance(validated_data, collections_abc.Sequence):
+            return self.many_serializer.update(instance, validated_data)
+        return super(JSONAPIPrimaryDataSerializer, self).update(
+            instance, validated_data)
+
+    def create(self, validated_data):
+        """
+        Use the list serializer for multiple resources.
+        """
+        if isinstance(validated_data, collections_abc.Sequence):
+            return self.many_serializer.create(validated_data)
+        return super(JSONAPIPrimaryDataSerializer, self).create(
+            validated_data)
+
+    def save(self, **kwargs):
+        """
+        Use the list serializer for multiple resources.
+        """
+        if isinstance(self.validated_data, collections_abc.Sequence):
+            # Guard against incorrect use of `serializer.save(commit=False)`
+            assert 'commit' not in kwargs, (
+                "'commit' is not a valid keyword argument to the 'save()' "
+                "method. If you need to access data before committing to the "
+                "database then inspect 'serializer.validated_data' "
+                "instead. You can also pass additional keyword arguments to "
+                "'save()' if you need to set extra attributes on the saved "
+                "model instance. For example: "
+                "'serializer.save(owner=request.user)'.'"
+            )
+
+            validated_data = []
+            for child_data in self.validated_data:
+                # Use copy() to preserve specific serializer reference
+                child_data = child_data.copy()
+                child_data.update(kwargs)
+                validated_data.append(child_data)
+
+            if self.instance is not None:
+                self.instance = self.update(self.instance, validated_data)
+                assert self.instance is not None, (  # pragma: no cover
+                    '`update()` did not return an object instance.'
+                )
+            else:
+                self.instance = self.create(validated_data)
+                assert self.instance is not None, (
+                    '`create()` did not return an object instance.'
+                )
+
+            return self.instance
+        return super(JSONAPIPrimaryDataSerializer, self).save(**kwargs)
+
+    def is_valid(self, raise_exception=False):
+        """
+        Use the list serializer for multiple resources.
+        """
+        assert hasattr(self, 'initial_data'), (
+            'Cannot call `.is_valid()` as no `data=` keyword argument was '
+            'passed when instantiating the serializer instance.'
+        )
+
+        if not hasattr(self, '_validated_data'):
+            try:
+                self._validated_data = self.run_validation(self.initial_data)
+            except exceptions.ValidationError as exc:
+                if isinstance(self.initial_data, collections_abc.Sequence):
+                    self._validated_data = []
+                else:
+                    self._validated_data = {}
+                self._errors = exc.detail
+            else:
+                if isinstance(self.initial_data, collections_abc.Sequence):
+                    self._errors = []
+                else:
+                    self._errors = {}
+
+        if self._errors and raise_exception:
+            raise exceptions.ValidationError(self.errors)
+
+        return not bool(self._errors)
+
+    @property
+    def data(self):
+        """
+        Use the list serializer for multiple resources.
+        """
+        data = super(serializers.Serializer, self).data
+        if isinstance(data, collections_abc.Sequence):
+            return serializers.ReturnList(data, serializer=self)
+        else:
+            return serializers.ReturnDict(data, serializer=self)
+
+    @property
+    def errors(self):
+        """
+        Use the list serializer for multiple resources.
+        """
+        errors = super(serializers.Serializer, self).errors
+        if isinstance(errors, collections_abc.Sequence):
+            return serializers.ReturnList(
+                errors, serializer=self.many_serializer)
+        else:
+            return errors
 
 
 class JSONAPIMetaContainerSerializer(serializers.Serializer):
@@ -112,6 +245,7 @@ class JSONAPILinksSerializer(serializers.Serializer):
     Serializer for a JSON API links object.
     """
 
+    # TODO use hyperlinked field for `href`
     self = JSONAPILinkSerializer(
         label='Document Link',
         help_text='a link for the resource itself',
@@ -147,6 +281,26 @@ class JSONAPILinkableSerializer(serializers.Serializer):
         required=False)
 
 
+class JSONAPIResourceIdentifierSerializer(JSONAPIPrimaryDataSerializer):
+    """
+    Common serializer support for JSON API objects with resource identifiers.
+    """
+
+    # Use just `type` and `id`
+    exclude_parameterized = True
+
+    def to_internal_value(self, data):
+        """
+        Translate JSON API resource identifier to the ID DRF expects.
+        """
+        value = super(
+            JSONAPIResourceIdentifierSerializer, self).to_internal_value(data)
+        if isinstance(value, collections_abc.Sequence):
+            return value
+
+        return value.clone.fields['id'].get_attribute(value)
+
+
 class JSONAPIRelationshipSerializer(
         JSONAPILinkableSerializer, JSONAPIMetaContainerSerializer):
     """
@@ -157,7 +311,7 @@ class JSONAPIRelationshipSerializer(
 
     data = JSONAPIResourceIdentifierSerializer(
         label='Resource', help_text='the document\'s "primary data"',
-        required=False)
+        required=False, partial=True)
 
     default_error_messages = {
         'missing_must': (
@@ -165,21 +319,26 @@ class JSONAPIRelationshipSerializer(
             'one of the following: `links`, `data`, `meta`.'),
     }
 
-    def validate(self, attrs):
+    def to_internal_value(self, data):
         """
-        JSON API relationship validation.
+        Translate JSON API relationship representation to what DRF consumes.
         """
-        if not set(attrs).intersection(self.MUST_HAVE_ONE_OF):
+        if not set(data).intersection(self.MUST_HAVE_ONE_OF):
             self.fail('missing_must')
-        return super(JSONAPIRelationshipSerializer, self).validate(attrs)
+        value = super(
+            JSONAPIRelationshipSerializer, self).to_internal_value(data)
+        # Return only the primary data
+        return self.fields['data'].get_attribute(value)
 
 
 class JSONAPIResourceSerializer(
-        JSONAPIResourceIdentifierSerializer, JSONAPILinkableSerializer,
+        JSONAPIPrimaryDataSerializer, JSONAPILinkableSerializer,
         JSONAPIMetaContainerSerializer):
     """
     Serializer for the JSON API specific aspects of a resource.
     """
+
+    RESERVED_FIELDS = {'type', 'id'}
 
     default_error_messages = {
         'reserved_field': (
@@ -201,21 +360,31 @@ class JSONAPIResourceSerializer(
         'between the resource and other JSON API resources.',
         required=False, child=JSONAPIRelationshipSerializer())
 
-    def validate(self, attrs):
+    def to_internal_value(self, data):
         """
-        JSON API Resource validation.
+        Translate the JSON API format into the DRF internal format.
         """
-        if isinstance(attrs, collections_abc.Sequence):
-            # Delegate multiple values to the list serializer
-            return self.many_serializer.validate(attrs)
+        if isinstance(data, collections_abc.Sequence):
+            return super(
+                JSONAPIResourceSerializer, self).to_internal_value(data)
 
+        # Do validation here while it's still in JSON API format
         errors = collections.OrderedDict()
 
-        attributes = set(attrs.get('attributes', {}))
-        relationships = set(attrs.get('relationships', {}))
-        for member, keys in (
-                ('attributes', attributes), ('relationships', relationships)):
-            reserved = keys.intersection(('type', 'id'))
+        attributes = self.fields['attributes'].get_value(data)
+        if attributes is serializers.empty:
+            value = {}
+        else:
+            value = attributes.copy()
+        relationships = self.fields['relationships'].get_value(data)
+        if relationships is not serializers.empty:
+            relationships_value = self.fields[
+                'relationships'].to_internal_value(relationships)
+        for member, jsonapi in (
+                ('attributes', value), ('relationships', relationships)):
+            if jsonapi is serializers.empty:
+                continue
+            reserved = self.RESERVED_FIELDS.intersection(jsonapi)
             if reserved:
                 try:
                     self.fail(
@@ -225,18 +394,72 @@ class JSONAPIResourceSerializer(
                     errors[member] = exc.detail
                     continue
 
-        conflicts = keys.intersection(('type', 'id'))
-        if conflicts:
-            try:
-                self.fail('field_conflicts', fields=', '.join(repr(
-                    field) for field in conflicts))
-            except exceptions.ValidationError as exc:
-                errors["attributes"] = exc.detail
+        if serializers.empty not in [value, relationships]:
+            conflicts = set(value).intersection(relationships)
+            if conflicts:
+                try:
+                    self.fail('field_conflicts', fields=', '.join(repr(
+                        field) for field in conflicts))
+                except exceptions.ValidationError as exc:
+                    errors["attributes"] = exc.detail
 
         if errors:
             raise exceptions.ValidationError(errors)
 
-        return attrs
+        value["type"] = self.fields['type'].get_value(data)
+        value["id"] = self.fields['id'].get_value(data)
+
+        # Lookup the per-type serializer so we can introspect related fields
+        self.clone_meta['parameter_field'].to_internal_value(
+            self.clone_meta['parameter_field'].get_value(data))
+        specific = self.clone_meta[
+            'parameter_field'].clone_specific_internal(data)
+
+        if relationships is serializers.empty:
+            return super(
+                JSONAPIResourceSerializer, self).to_internal_value(value)
+
+        # Move items from the `relationships` object and insert them into the
+        # main object as DRF expects internally
+        for field in specific.fields.values():
+
+            if (
+                    isinstance(field, (
+                        relations.RelatedField,
+                        relations.ManyRelatedField)) and
+                    field.field_name in relationships_value):
+                value[field.field_name] = field.get_attribute(
+                    relationships_value)
+
+        return super(JSONAPIResourceSerializer, self).to_internal_value(value)
+
+    def to_representation(self, instance):
+        """
+        Translate the DRF internal format into the JSON API format.
+        """
+        data = super(JSONAPIResourceSerializer, self).to_representation(
+            instance)
+        if isinstance(instance, collections_abc.Sequence):
+            return data
+
+        relationships_data = collections.OrderedDict()
+        for field in data.clone.fields.values():
+            if isinstance(field, (
+                    relations.RelatedField, relations.ManyRelatedField)):
+                relationships_data[field.field_name] = {"data": self.fields[
+                    "relationships"].child.fields['data'].to_representation(
+                        field.get_attribute(instance))}
+                data.pop(field.field_name)
+
+        resource = collections.OrderedDict()
+        resource["type"] = data.pop("type")
+        resource["id"] = data.pop("id")
+        if data:
+            resource["attributes"] = data
+        if relationships_data:
+            resource["relationships"] = relationships_data
+
+        return resource
 
 
 class JSONAPIErrorLinksSerializer(serializers.Serializer):
@@ -318,10 +541,25 @@ class JSONAPIImplementationSerializer(JSONAPIMetaContainerSerializer):
     Serializer for a JSON API implementation detail object.
     """
 
+    default_error_messages = {
+        'version_too_high': (
+            'The JSON API version requested is too high and not supported'
+            ': {version}.'),
+    }
+
     version = serializers.CharField(
         label='JSON API Version',
         help_text='the highest JSON API version supported.',
-        required=False, default='1.0')
+        required=False, default=pkg_resources.parse_version('1.0'))
+
+    def validate_version(self, version):
+        """
+        The version must be less than or equal to our version.
+        """
+        parsed = pkg_resources.parse_version(version)
+        if parsed > self.fields['version'].get_default():
+            self.fail('version_too_high', version=parsed)
+        return parsed
 
 
 class JSONAPIDocumentSerializer(
@@ -329,6 +567,8 @@ class JSONAPIDocumentSerializer(
     """
     Serializer for a JSON API top-level document.
     """
+
+    MUST_HAVE_ONE_OF = {'data', 'errors', 'meta'}
 
     default_error_messages = {
         'errors_and_data': (
@@ -339,7 +579,10 @@ class JSONAPIDocumentSerializer(
             'the following top-level members: `data`, `errors`, `meta`.'),
         'included_wo_data': (
             'If a document does not contain a top-level data key, '
-            'the included member MUST NOT be present either.'),
+            'the `included` member MUST NOT be present either.'),
+        'included_to_internal': (
+            'A document may not contain `included` resrouces on '
+            'incomming/write requrests: POST, PUT, PATCH, DELETE.'),
         'duplicate_resource': (
             'A document MUST NOT include more than one resource object '
             'for each type ({type!r}) and id ({id!r}) pair, '
@@ -370,47 +613,77 @@ class JSONAPIDocumentSerializer(
             'and/or other included resources/'),
         required=False)
 
+    def to_internal_value(self, data):
+        """
+        JSON API Document-wide validation.
+        """
+        # Do validation here while we still have the JSON API format
+        errors = collections.OrderedDict()
+
+        errors_value = self.fields['errors'].get_value(data)
+        data_value = self.fields['data'].get_value(data)
+        if (
+                errors_value is not serializers.empty and
+                data_value is not serializers.empty):
+            try:
+                self.fail('errors_and_data')
+            except exceptions.ValidationError as exc:
+                errors[api_settings.NON_FIELD_ERRORS_KEY] = exc.detail
+        if not self.MUST_HAVE_ONE_OF.intersection(data):
+            try:
+                self.fail('missing_must')
+            except exceptions.ValidationError as exc:
+                errors[api_settings.NON_FIELD_ERRORS_KEY] = exc.detail
+
+        included = self.fields['included'].get_value(data)
+        if included is not serializers.empty:
+            try:
+                self.fail('included_to_internal')
+            except exceptions.ValidationError as exc:
+                errors["included"] = exc.detail
+
+        self._validate_duplicates(data, errors)
+
+        if errors:
+            raise exceptions.ValidationError(errors)
+
+        value = super(JSONAPIDocumentSerializer, self).to_internal_value(data)
+        try:
+            return self.fields['data'].get_attribute(value)
+        except serializers.SkipField:
+            return self.fields['errors'].get_attribute(value)
+
     def to_representation(self, instance):
         """
         Place the instance into the `data` key.
         """
-        return super(JSONAPIDocumentSerializer, self).to_representation(
+        data = super(JSONAPIDocumentSerializer, self).to_representation(
             {"data": instance})
 
-    def validate(self, attrs):
-        """
-        JSON API Document-wide validation.
-        """
         errors = collections.OrderedDict()
 
-        if 'errors' in attrs and 'data' in attrs:
-            try:
-                self.fail('errors_and_data')
-            except exceptions.ValidationError as exc:
-                errors["attributes"] = exc.detail
-        if not ('data' in attrs or 'errors' in attrs or 'meta' in attrs):
-            try:
-                self.fail('missing_must')
-            except exceptions.ValidationError as exc:
-                errors["attributes"] = exc.detail
+        self._validate_duplicates(
+            data, errors, ('included', data.get('included', [])))
 
-        if 'included' in attrs and 'data' not in attrs:
-            try:
-                self.fail('included_wo_data')
-            except exceptions.ValidationError as exc:
-                errors["attributes"] = exc.detail
+        if errors:
+            raise exceptions.ValidationError(errors)
+
+        return data
+
+    def _validate_duplicates(self, data, errors, *member_resources):
+        """
+        Check for duplicate resources.
+        """
         resource_ids = set()
-        data = attrs.get('data', [])
-        if not isinstance(data, collections_abc.Sequence):
-            data = [data]
-        for member, resources in (
-                ('data', data), ('included', attrs.get('included', []))):
+        primary = data.get('data', [])
+        if not isinstance(primary, collections_abc.Sequence):
+            primary = [primary]
+        for member, resources in (('data', primary), ) + member_resources:
             for resource in resources:
                 type_id = (
-                    # Lookup the type parameter from the resource type field
-                    self.fields['data'].fields['type'].parameters[
-                        type(resource["type"])],
-                    resource["id"])
+                    # Lookup the type and ID from the resource fields
+                    self.fields['data'].fields['type'].get_value(resource),
+                    self.fields['data'].fields['id'].get_value(resource))
                 if type_id in resource_ids:
                     try:
                         self.fail(
@@ -420,8 +693,4 @@ class JSONAPIDocumentSerializer(
                         errors['/{0}/{1}/{2}'.format(
                             member, *type_id)] = exc.detail
                 resource_ids.add(type_id)
-
-        if errors:
-            raise exceptions.ValidationError(errors)
-
-        return attrs
+        return resource_ids

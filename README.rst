@@ -22,7 +22,9 @@ Usage
 `django_rest_json_api` provides the following for re-use in other DRF projects:
 
 `django_rest_json_api.serializers`
-  Serializers implementing the various JSON API objects.
+  Serializers implementing the various JSON API objects.  This implementation
+  currently defaults to using UUID's instead of DB pk IDs as the JSON IP
+  resource ID and requires your models to have a ``uuid`` field.
 
 
 
@@ -56,6 +58,7 @@ Contributions for the following are particularly welcome:
 #. `...?include=...` `included resources parameter`_ support
 #. `...?fields=...` `sparse fieldsets parameter`_ support
 #. Return `400 Bad Request` on `non-compliant query parameters`_
+#. Support DB pk ID for the JSON API resource ``id`` as an option
   
 
 .. _JSON API specification: http://jsonapi.org/format/
