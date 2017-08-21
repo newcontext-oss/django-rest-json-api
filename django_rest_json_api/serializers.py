@@ -287,6 +287,7 @@ class JSONAPIResourceIdentifierSerializer(JSONAPIPrimaryDataSerializer):
     """
 
     # Use just `type` and `id`
+    skip_parameterized = False
     exclude_parameterized = True
 
     def to_internal_value(self, data):
@@ -446,9 +447,11 @@ class JSONAPIResourceSerializer(
         for field in data.clone.fields.values():
             if isinstance(field, (
                     relations.RelatedField, relations.ManyRelatedField)):
-                relationships_data[field.field_name] = {"data": self.fields[
-                    "relationships"].child.fields['data'].to_representation(
-                        field.get_attribute(instance))}
+                relationship_instance = field.to_internal_value(
+                    field.get_value(data))
+                relationships_data[field.field_name] = self.fields[
+                    "relationships"].child.to_representation(
+                        {"data": relationship_instance})
                 data.pop(field.field_name)
 
         resource = collections.OrderedDict()
