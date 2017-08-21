@@ -54,7 +54,7 @@ class JSONAPIPrimaryDataSerializer(
         """
         value = super(
             JSONAPIPrimaryDataSerializer, self).get_value(dictionary)
-        if isinstance(value, collections_abc.Sequence):
+        if isinstance(value, list):
             return self.many_serializer.get_value(dictionary)
         return value
 
@@ -62,7 +62,7 @@ class JSONAPIPrimaryDataSerializer(
         """
         Use the list serializer for multiple resources.
         """
-        if isinstance(data, collections_abc.Sequence):
+        if isinstance(data, list):
             return self.many_serializer.run_validation(data)
         return super(
             JSONAPIPrimaryDataSerializer, self).run_validation(data)
@@ -71,7 +71,7 @@ class JSONAPIPrimaryDataSerializer(
         """
         Use the list serializer for multiple resources.
         """
-        if isinstance(data, collections_abc.Sequence):
+        if isinstance(data, list):
             return self.many_serializer.to_internal_value(data)
         return super(
             JSONAPIPrimaryDataSerializer, self).to_internal_value(data)
@@ -80,7 +80,7 @@ class JSONAPIPrimaryDataSerializer(
         """
         Use the list serializer for multiple resources.
         """
-        if isinstance(instance, (collections_abc.Sequence, models.QuerySet)):
+        if isinstance(instance, (list, models.QuerySet)):
             return self.many_serializer.to_representation(instance)
         return super(
             JSONAPIPrimaryDataSerializer, self).to_representation(
@@ -90,7 +90,7 @@ class JSONAPIPrimaryDataSerializer(
         """
         Use the list serializer for multiple resources.
         """
-        if isinstance(attrs, collections_abc.Sequence):
+        if isinstance(attrs, list):
             return self.many_serializer.validate(attrs)
         return super(JSONAPIPrimaryDataSerializer, self).validate(
             attrs)
@@ -99,7 +99,7 @@ class JSONAPIPrimaryDataSerializer(
         """
         Use the list serializer for multiple resources.
         """
-        if isinstance(validated_data, collections_abc.Sequence):
+        if isinstance(validated_data, list):
             return self.many_serializer.update(instance, validated_data)
         return super(JSONAPIPrimaryDataSerializer, self).update(
             instance, validated_data)
@@ -108,7 +108,7 @@ class JSONAPIPrimaryDataSerializer(
         """
         Use the list serializer for multiple resources.
         """
-        if isinstance(validated_data, collections_abc.Sequence):
+        if isinstance(validated_data, list):
             return self.many_serializer.create(validated_data)
         return super(JSONAPIPrimaryDataSerializer, self).create(
             validated_data)
@@ -117,7 +117,7 @@ class JSONAPIPrimaryDataSerializer(
         """
         Use the list serializer for multiple resources.
         """
-        if isinstance(self.validated_data, collections_abc.Sequence):
+        if isinstance(self.validated_data, list):
             # Guard against incorrect use of `serializer.save(commit=False)`
             assert 'commit' not in kwargs, (
                 "'commit' is not a valid keyword argument to the 'save()' "
@@ -163,13 +163,13 @@ class JSONAPIPrimaryDataSerializer(
             try:
                 self._validated_data = self.run_validation(self.initial_data)
             except exceptions.ValidationError as exc:
-                if isinstance(self.initial_data, collections_abc.Sequence):
+                if isinstance(self.initial_data, list):
                     self._validated_data = []
                 else:
                     self._validated_data = {}
                 self._errors = exc.detail
             else:
-                if isinstance(self.initial_data, collections_abc.Sequence):
+                if isinstance(self.initial_data, list):
                     self._errors = []
                 else:
                     self._errors = {}
@@ -185,7 +185,7 @@ class JSONAPIPrimaryDataSerializer(
         Use the list serializer for multiple resources.
         """
         data = super(serializers.Serializer, self).data
-        if isinstance(data, collections_abc.Sequence):
+        if isinstance(data, list):
             return serializers.ReturnList(data, serializer=self)
         else:
             return serializers.ReturnDict(data, serializer=self)
@@ -196,7 +196,7 @@ class JSONAPIPrimaryDataSerializer(
         Use the list serializer for multiple resources.
         """
         errors = super(serializers.Serializer, self).errors
-        if isinstance(errors, collections_abc.Sequence):
+        if isinstance(errors, list):
             return serializers.ReturnList(
                 errors, serializer=self.many_serializer)
         else:
@@ -295,7 +295,7 @@ class JSONAPIResourceIdentifierSerializer(JSONAPIPrimaryDataSerializer):
         """
         value = super(
             JSONAPIResourceIdentifierSerializer, self).to_internal_value(data)
-        if isinstance(value, collections_abc.Sequence):
+        if isinstance(value, list):
             return value
 
         return value.clone.fields['id'].get_attribute(value)
@@ -364,7 +364,7 @@ class JSONAPIResourceSerializer(
         """
         Translate the JSON API format into the DRF internal format.
         """
-        if isinstance(data, collections_abc.Sequence):
+        if isinstance(data, list):
             return super(
                 JSONAPIResourceSerializer, self).to_internal_value(data)
 
@@ -439,7 +439,7 @@ class JSONAPIResourceSerializer(
         """
         data = super(JSONAPIResourceSerializer, self).to_representation(
             instance)
-        if isinstance(instance, collections_abc.Sequence):
+        if isinstance(instance, list):
             return data
 
         relationships_data = collections.OrderedDict()
@@ -676,7 +676,7 @@ class JSONAPIDocumentSerializer(
         """
         resource_ids = set()
         primary = data.get('data', [])
-        if not isinstance(primary, collections_abc.Sequence):
+        if not isinstance(primary, list):
             primary = [primary]
         for member, resources in (('data', primary), ) + member_resources:
             for resource in resources:
