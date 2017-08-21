@@ -613,6 +613,14 @@ class JSONAPIDocumentSerializer(
             'and/or other included resources/'),
         required=False)
 
+    @classmethod
+    def many_init(cls, *args, **kwargs):
+        """
+        Don't use the ListSerializer, delegate to the `data` serializer.
+        """
+        return super(JSONAPIDocumentSerializer, cls).__new__(
+            cls, *args, **kwargs)
+
     def to_internal_value(self, data):
         """
         JSON API Document-wide validation.
