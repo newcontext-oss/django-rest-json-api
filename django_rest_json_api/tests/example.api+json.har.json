@@ -5,7 +5,7 @@
       {
         "request": {
           "method": "GET",
-          "url": "/articles/",
+          "url": "http://testhost/articles/",
           "headers" : [
             {
               "name": "Accept",
@@ -37,9 +37,9 @@
                 "relationships": {
                   "author": {
                     "links": {
-                      "self": "http://testserver/articles/2d1686b9-6a5d-44a3-b707-0f4cafa842b5/relationships/author",
+                      "self": "http://testserver/articles/2d1686b9-6a5d-44a3-b707-0f4cafa842b5/relationships/author/",
                       "related": {
-                        "href": "http://testserver/articles/2d1686b9-6a5d-44a3-b707-0f4cafa842b5/author"
+                        "href": "http://testserver/articles/2d1686b9-6a5d-44a3-b707-0f4cafa842b5/author/"
                       }
                     },
                     "data": {
@@ -49,8 +49,8 @@
                   },
                   "comments": {
                     "links": {
-                      "self": "http://testserver/articles/2d1686b9-6a5d-44a3-b707-0f4cafa842b5/relationships/comments",
-                      "related": "http://testserver/articles/2d1686b9-6a5d-44a3-b707-0f4cafa842b5/comments"
+                      "self": "http://testserver/articles/2d1686b9-6a5d-44a3-b707-0f4cafa842b5/relationships/comments/",
+                      "related": "http://testserver/articles/2d1686b9-6a5d-44a3-b707-0f4cafa842b5/comments/"
                     },
                     "data": [
                       {
@@ -65,7 +65,7 @@
                   }
                 },
                 "links": {
-                  "self": "http://testserver/articles/2d1686b9-6a5d-44a3-b707-0f4cafa842b5"
+                  "self": "http://testserver/articles/2d1686b9-6a5d-44a3-b707-0f4cafa842b5/"
                 }
               }],
               "included": [{
@@ -76,7 +76,7 @@
                   "last_name": "Gebhardt"
                 },
                 "links": {
-                  "self": "http://testserver/people/e2fa493a-d689-4b88-8dde-b7290e1666d9"
+                  "self": "http://testserver/people/e2fa493a-d689-4b88-8dde-b7290e1666d9/"
                 }
               }, {
                 "type": "comments",
@@ -93,7 +93,7 @@
                   }
                 },
                 "links": {
-                  "self": "http://testserver/comments/d3c12007-8b90-4865-a42e-92b836a81f61"
+                  "self": "http://testserver/comments/d3c12007-8b90-4865-a42e-92b836a81f61/"
                 }
               }, {
                 "type": "comments",
@@ -110,7 +110,7 @@
                   }
                 },
                 "links": {
-                  "self": "http://testserver/comments/d69c7caa-a93a-41f3-8ff2-1901710b6133"
+                  "self": "http://testserver/comments/d69c7caa-a93a-41f3-8ff2-1901710b6133/"
                 }
               }]
             }

@@ -5,7 +5,7 @@
       {
         "request": {
           "method": "POST",
-          "url": "/articles",
+          "url": "http://testhost/articles/",
           "headers" : [
             {
               "name": "Content-Type",
