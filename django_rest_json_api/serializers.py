@@ -256,6 +256,7 @@ class JSONAPILinksSerializer(serializers.Serializer):
         required=False)
 
     # Pagination links
+    # TODO integrate with DRF pagination
     first = serializers.URLField(
         label='First Page', help_text='the first page of data',
         required=False)

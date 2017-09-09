@@ -52,6 +52,7 @@ Contributions for the following are particularly welcome:
 #. Test coverage on error object serializer
 #. DRF format/renderer/parser supporting JSON API on any endpoint alongside
    other formats
+#. Support inflecting field/member names, e.g. ``inflection.dasherize()``
 #. `...?sort=...` `sort parameter`_ support
 #. `...?filter=...` `filter parameter`_ support
 #. `...?page[...]=...` `page parameter`_ support
@@ -59,6 +60,7 @@ Contributions for the following are particularly welcome:
 #. `...?fields=...` `sparse fieldsets parameter`_ support
 #. Return `400 Bad Request` on `non-compliant query parameters`_
 #. Support DB pk ID for the JSON API resource ``id`` as an option
+#. Support DRF nested routers per the jsonapi.org relationship link examples
   
 
 .. _JSON API specification: http://jsonapi.org/format/
