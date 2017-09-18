@@ -12,7 +12,6 @@ from rest_framework import request
 from rest_framework import reverse
 from rest_framework import test
 
-from django_rest_json_api import utils
 from django_rest_json_api_example import models
 
 
@@ -65,17 +64,17 @@ class JSONAPITestCase(test_har.HARTestCase):
             for comment_jsonapi in comments_jsonapi.values()}
         self.author = models.Person.objects.create(
             uuid=self.author_jsonapi["id"],
-            **utils.to_kwargs(self.author_jsonapi["attributes"]))
+            **self.author_jsonapi["attributes"])
         person_uuids.remove(self.author_jsonapi["id"])
         models.Person.objects.bulk_create([
             models.Person(uuid=person_uuid) for person_uuid in person_uuids])
         self.article = models.Article.objects.create(
             uuid=article_jsonapi["id"], author=self.author,
-            **utils.to_kwargs(article_jsonapi["attributes"]))
+            **article_jsonapi["attributes"])
         self.comments = models.Comment.objects.bulk_create([
             models.Comment(
                 uuid=comment_id, article=self.article, author=self.author,
-                **utils.to_kwargs(comment_jsonapi["attributes"])) for
+                **comment_jsonapi["attributes"]) for
             comment_id, comment_jsonapi in comments_jsonapi.items()])
 
         self.factory = test.APIRequestFactory()
