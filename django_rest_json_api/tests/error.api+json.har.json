@@ -10,6 +10,10 @@
             {
               "name": "Content-Type",
               "value": "application/vnd.api+json"
+            },
+            {
+              "name": "Accept",
+              "value": "application/vnd.api+json"
             }
           ],
           "postData": {
@@ -18,7 +22,15 @@
               "data": {
                 "type": "articles",
                 "attributes": {
-                  "title": "Foo"
+                  "title": "Fo"
+                },
+                "relationships": {
+                  "author": {
+                    "data": {
+                      "type": "people",
+                      "id": "e2fa493a-d689-4b88-8dde-b7290e1666d9"
+                    }
+                  }
                 }
               }
             }
@@ -26,17 +38,25 @@
           "comment" : "Test validation errors"
         },
         "response": {
-          "status": 422,
-          "statusText": "Unprocessable Entity",
+          "status": 400,
+          "statusText": "Bad Request",
           "content": {
             "mimeType": "application/vnd.api+json",
             "text": {
               "errors": [
                 {
-                  "status": "422",
+                  "status": "400",
+                  "id": "min_length",
+                  "title":  "Min Length",
                   "source": { "pointer": "/data/attributes/title" },
-                  "title":  "Invalid Attribute",
-                  "detail": "Title name must contain at least three characters."
+                  "detail": "Ensure this field has at least 3 characters."
+                },
+                {
+                  "status": "400",
+                  "id": "required",
+                  "title": "Required",
+                  "source": {"pointer": "/data/relationships/comments"},
+                  "detail": "This field is required."
                 }
               ]
             }

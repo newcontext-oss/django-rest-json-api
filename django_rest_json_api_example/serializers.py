@@ -1,3 +1,5 @@
+from rest_framework import serializers
+
 from drf_extra_fields import relations
 
 from django_rest_json_api_example import models
@@ -21,6 +23,8 @@ class ArticleSerializer(relations.UUIDModelSerializer):
         model = models.Article
         exclude = None
         fields = ('id', 'title', 'author', 'comments')
+
+    title = serializers.CharField(min_length=3)
 
 
 class CommentSerializer(relations.UUIDModelSerializer):

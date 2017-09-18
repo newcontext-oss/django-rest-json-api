@@ -402,3 +402,22 @@ class DRFJSONAPISerializerTests(tests.JSONAPITestCase):
             'may not contain `included`',
             cm.exception.detail['included'][0].lower(),
             'Wrong `errors` with `data` validation error')
+
+    def test_flatten_error_details_nested_list(self):
+        """
+        Test recursively flattening error details.
+        """
+        detail = [[exceptions.ErrorDetail('Foo error detail')]]
+        flattened = list(serializers.flatten_error_details(detail))
+        self.assertEqual(
+            len(flattened), 1,
+            'Wrong number of flattened error details')
+        self.assertEqual(
+            len(flattened[0]), 2,
+            'Wrong flattened error detail item type')
+        self.assertEqual(
+            flattened[0][0], '/0',
+            'Wrong flattened error detail source pointer')
+        self.assertEqual(
+            flattened[0][1], str(detail[0][0]),
+            'Wrong flattened error detail message')

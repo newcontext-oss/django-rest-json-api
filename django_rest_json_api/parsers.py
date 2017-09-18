@@ -11,3 +11,4 @@ class JSONAPIParser(parsers.JSONParser):
     renderer_class = renderers.JSONAPIRenderer
 
     serializer_class = renderers.JSONAPIRenderer.serializer_class
+    error_serializer_class = renderers.JSONAPIRenderer.error_serializer_class

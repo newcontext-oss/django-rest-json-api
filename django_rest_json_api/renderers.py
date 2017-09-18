@@ -11,3 +11,4 @@ class JSONAPIRenderer(renderers.JSONRenderer):
     format = 'json-api'
 
     serializer_class = serializers.JSONAPIDocumentSerializer
+    error_serializer_class = serializers.JSONAPIDocumentSerializer

@@ -2,6 +2,7 @@
 DRF serializers describing and implementing the JSON API format.
 """
 
+import operator
 import collections
 try:
     from collections import abc as collections_abc
@@ -10,6 +11,8 @@ except ImportError:  # pragma: no cover
     collections_abc = collections
 
 import pkg_resources
+
+import inflection
 
 from django.db import models
 from django.utils import functional
@@ -21,6 +24,31 @@ from rest_framework import relations
 
 from drf_extra_fields import generic
 from drf_extra_fields import parameterized
+
+
+def flatten_error_details(data, source=''):
+    """
+    Recursively flatten nested error details into an array.
+
+    Based on `rest_framework.exceptions._get_error_details()`.
+    """
+    if isinstance(data, list):
+        for idx, item in enumerate(data):
+            if isinstance(item, exceptions.ErrorDetail):
+                # Don't index multiple errors for the same source
+                item_source = source
+            else:
+                item_source = '{0}/{1}'.format(source, idx)
+            for recursed_source, recursed_item in flatten_error_details(
+                    item, source=item_source):
+                yield (recursed_source, recursed_item)
+    elif isinstance(data, dict):
+        for key, value in sorted(data.items(), key=operator.itemgetter(0)):
+            for recursed_source, recursed_value in flatten_error_details(
+                    value, source='{0}/{1}'.format(source, key)):
+                yield (recursed_source, recursed_value)
+    else:
+        yield source, data
 
 
 class JSONAPIPrimaryDataSerializer(
@@ -445,8 +473,29 @@ class JSONAPIResourceSerializer(
             return super(
                 JSONAPIResourceSerializer, self).to_internal_value(data)
 
-        value = super(
-            JSONAPIResourceSerializer, self).to_internal_value(data)
+        try:
+            value = super(
+                JSONAPIResourceSerializer, self).to_internal_value(data)
+        except exceptions.APIException as exc:
+            # Move resource field errors into attributes or relationships
+            parameter_serializer = self.fields['type'].parameter_serializers[0]
+            for field_name, field in parameter_serializer.child.fields.items():
+                if field_name == self.fields['id'].source:
+                    # Leave any ID field in the top-level
+                    continue
+                field_data = field.get_value(exc.detail)
+                if field_data is serializers.empty:
+                    # Skip fields not in the error
+                    continue
+                if isinstance(field, (
+                        relations.RelatedField, relations.ManyRelatedField)):
+                    exc.detail.setdefault(
+                        'relationships', {})[field_name] = field_data
+                else:
+                    exc.detail.setdefault(
+                        'attributes', {})[field_name] = field_data
+                del exc.detail[field_name]
+            raise exc
 
         # Do validation on original data but after normal validation to
         # include required and basic type validation
@@ -570,11 +619,11 @@ class JSONAPIErrorSerializer(JSONAPIMetaContainerSerializer):
         help_text='a links object containing further details '
         'about this particular occurrence of the problem.',
         required=False)
-    status = serializers.IntegerField(
+    status = serializers.CharField(
         label='Error Status',
         help_text='the HTTP status code applicable to this problem, '
         'expressed as a string value.',
-        required=False, max_value=599, min_value=100)
+        required=False)
     code = serializers.CharField(
         label='Application Error Code',
         help_text='an application-specific error code, '
@@ -735,18 +784,23 @@ class JSONAPIDocumentSerializer(
         Generate a JSON API document for the resource.
         """
         value = collections.OrderedDict()
-        serializers.set_value(
-            value, self.fields['data'].source_attrs, instance)
 
         if isinstance(instance, exceptions.APIException):
             # Being used in the exception handler
-            detail = instance.detail
-            if not isinstance(detail, list):
-                detail = [detail]
             # Process a dict of errors into a JSON API array
-            TODO
+            errors = [
+                {
+                    "status": instance.status_code,
+                    "id": detail.code,
+                    "source": {"pointer": source},
+                    "title":  inflection.titleize(detail.code),
+                    "detail": detail}
+                for source, detail in flatten_error_details(instance.detail)]
             serializers.set_value(
-                value, self.fields['errors'].source_attrs, detail)
+                value, self.fields['errors'].source_attrs, errors)
+        else:
+            serializers.set_value(
+                value, self.fields['data'].source_attrs, instance)
 
         data = super(JSONAPIDocumentSerializer, self).to_representation(value)
 

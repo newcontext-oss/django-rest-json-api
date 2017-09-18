@@ -19,3 +19,10 @@ class JSONAPIExamplesTest(tests.JSONAPITestCase):
         Test the jsonapi.org front page example.
         """
         self.assertHAR(self.example)
+
+    def test_json_api_error_example(self):
+        """
+        Test the jsonapi.org error response example.
+        """
+        self.setUpHAR('error.api+json.har.json')
+        self.assertHAR(self.example)
