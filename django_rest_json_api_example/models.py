@@ -29,6 +29,8 @@ class Comment(models.Model):
     """
     JSON API example comment model.
     """
+    class Meta:
+        ordering = ["uuid"]
 
     uuid = models.UUIDField()
     body = models.TextField()
