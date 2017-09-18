@@ -62,6 +62,8 @@ Contributions for the following are particularly welcome:
 #. Support DB pk ID for the JSON API resource ``id`` as an option
 #. Support DRF nested routers per the jsonapi.org relationship link examples
 #. Add coverage and support for non-model serializers
+#. Figure out what to do with the code implementing the the JSON API standard
+   as DRF validation that isn't appropriate for `to_internal_value()`.
   
 
 .. _JSON API specification: http://jsonapi.org/format/
