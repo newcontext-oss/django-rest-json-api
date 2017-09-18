@@ -1,0 +1,55 @@
+{
+  "log": {
+    "version": "1.2",
+    "entries": [
+      {
+        "request": {
+          "method": "GET",
+          "url": "http://testhost/articles/",
+          "queryString": [
+            {
+              "name": "include",
+              "value": "author"
+            }
+          ],
+          "comment" : "Test basic format with specified included resources"
+        },
+        "response": {
+          "status": 200,
+          "statusText": "OK",
+          "content": {
+            "mimeType": "application/vnd.api+json",
+            "text": {
+              "data": [{
+                "type": "articles",
+                "id": "2d1686b9-6a5d-44a3-b707-0f4cafa842b5",
+                "attributes": {
+                  "title": "JSON API paints my bikeshed!",
+                  "body": "The shortest article. Ever.",
+                  "created": "2015-05-22T14:56:29.000Z",
+                  "updated": "2015-05-22T14:56:28.000Z"
+                },
+                "relationships": {
+                  "author": {
+                    "data": {"id": "dd4f8547-5c86-4d0b-8bda-99a8b48c9f2a", "type": "people"}
+                  }
+                }
+              }],
+              "included": [
+                {
+                  "type": "people",
+                  "id": "dd4f8547-5c86-4d0b-8bda-99a8b48c9f2a",
+                  "attributes": {
+                    "name": "John",
+                    "age": 80,
+                    "gender": "male"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    ]
+  }
+}

@@ -26,3 +26,27 @@ class JSONAPIExamplesTest(tests.JSONAPITestCase):
         """
         self.setUpHAR('error.api+json.har.json')
         self.assertHAR(self.example)
+
+    def test_json_api_pagination_example(self):
+        """
+        Test the jsonapi.org pagination example.
+        """
+        self.setUpHAR('pagination.api+json.har.json')
+        self.skipTest('TODO Implement pagination')
+        # self.assertHAR(self.example)
+
+    def test_json_api_included_query_example(self):
+        """
+        Test the jsonapi.org included query parameter example.
+        """
+        self.setUpHAR('included-query.api+json.har.json')
+        self.skipTest('TODO Implement included query parameters')
+        # self.assertHAR(self.example)
+
+    def test_json_api_included_fields_example(self):
+        """
+        Test the jsonapi.org included fields parameter example.
+        """
+        self.setUpHAR('included-query-fields.api+json.har.json')
+        self.skipTest('TODO Implement included fields query parameters')
+        # self.assertHAR(self.example)

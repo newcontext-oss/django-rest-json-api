@@ -1,0 +1,59 @@
+{
+  "log": {
+    "version": "1.2",
+    "entries": [
+      {
+        "request": {
+          "method": "GET",
+          "url": "http://testhost/articles/",
+          "queryString": [
+            {
+              "name": "include",
+              "value": "author"
+            },
+            {
+              "name": "fields[articles]",
+              "value": "title,body,author"
+            },
+            {
+              "name": "fields[people]",
+              "value": "name"
+            }
+          ],
+          "comment" : "Test basic format with specified fields"
+        },
+        "response": {
+          "status": 200,
+          "statusText": "OK",
+          "content": {
+            "mimeType": "application/vnd.api+json",
+            "text": {
+              "data": [{
+                "type": "articles",
+                "id": "2d1686b9-6a5d-44a3-b707-0f4cafa842b5",
+                "attributes": {
+                  "title": "JSON API paints my bikeshed!",
+                  "body": "The shortest article. Ever."
+                },
+                "relationships": {
+                  "author": {
+                    "data": {"id": "dd4f8547-5c86-4d0b-8bda-99a8b48c9f2a", "type": "people"}
+                  }
+                }
+              }],
+              "included": [
+                {
+                  "type": "people",
+                  "id": "dd4f8547-5c86-4d0b-8bda-99a8b48c9f2a",
+                  "attributes": {
+                    "name": "John"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    ]
+  }
+}
