@@ -33,7 +33,7 @@ class JSONAPIPrimaryDataSerializer(
     id = serializers.UUIDField(
         label='Resource Identifier',
         help_text='a specific identifier within this type of resource',
-        required=True)
+        required=False)
     type = parameterized.SerializerParameterField(
         label='Resource Type',
         help_text='the type of this resource',

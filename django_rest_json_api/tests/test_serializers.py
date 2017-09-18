@@ -204,38 +204,47 @@ class DRFJSONAPISerializerTests(tests.JSONAPITestCase):
         """
         The resource serializer handles single resource validation errors.
         """
-        del self.content["data"][0]["id"]
+        del self.content["data"][0]["attributes"]["title"]
         single_serializer = serializers.JSONAPIResourceSerializer(
             data=self.content["data"][0])
         with self.assertRaises(exceptions.ValidationError) as cm:
             single_serializer.is_valid(raise_exception=True)
         self.assertIn(
-            'id', cm.exception.detail,
+            'attributes', cm.exception.detail,
+            'Missing resource field attributes validation')
+        self.assertIn(
+            'title', cm.exception.detail['attributes'],
             'Missing required field validation')
         self.assertIn(
-            'required', cm.exception.detail['id'][0],
+            'required', cm.exception.detail['attributes']['title'][0],
             'Wrong required field validation error')
 
     def test_multiple_resource_validation(self):
         """
         The resource serializer handles multiple resources validation errors.
         """
-        del self.content["data"][0]["id"]
+        del self.content["data"][0]["attributes"]["title"]
         multi_serializer = serializers.JSONAPIResourceSerializer(
             data=self.content["data"])
         with self.assertRaises(exceptions.ValidationError) as cm:
             multi_serializer.is_valid(raise_exception=True)
         self.assertIn(
-            'id', cm.exception.detail[0],
+            'attributes', cm.exception.detail[0],
+            'Missing resource field attributes validation')
+        self.assertIn(
+            'title', cm.exception.detail[0]['attributes'],
             'Missing required field validation')
         self.assertIn(
-            'required', cm.exception.detail[0]['id'][0],
+            'required', cm.exception.detail[0]['attributes']['title'][0],
             'Wrong required field validation error')
         self.assertIn(
-            'id', multi_serializer.errors[0],
+            'attributes', multi_serializer.errors[0],
+            'Missing resource field attributes validation')
+        self.assertIn(
+            'title', multi_serializer.errors[0]['attributes'],
             'Missing required field validation')
         self.assertIn(
-            'required', multi_serializer.errors[0]['id'][0],
+            'required', multi_serializer.errors[0]['attributes']['title'][0],
             'Wrong required field validation error')
 
     def test_field_reserved_conflict_validation(self):
