@@ -5,7 +5,7 @@ Test the basic DRF-formatted STIX type-specific endpoints.
 from django_rest_json_api import tests
 
 
-class JSONAPIFormatTest(tests.JSONAPITestCase):
+class JSONAPIExamplesTest(tests.JSONAPITestCase):
     """
     Test the JSON API format parsers/renders.
     """
