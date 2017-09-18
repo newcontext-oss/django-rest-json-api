@@ -61,6 +61,7 @@ Contributions for the following are particularly welcome:
 #. Return `400 Bad Request` on `non-compliant query parameters`_
 #. Support DB pk ID for the JSON API resource ``id`` as an option
 #. Support DRF nested routers per the jsonapi.org relationship link examples
+#. Add coverage and support for non-model serializers
   
 
 .. _JSON API specification: http://jsonapi.org/format/

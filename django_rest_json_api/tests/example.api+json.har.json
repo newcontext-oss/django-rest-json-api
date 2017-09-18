@@ -38,9 +38,7 @@
                   "author": {
                     "links": {
                       "self": "http://testserver/articles/2d1686b9-6a5d-44a3-b707-0f4cafa842b5/relationships/author/",
-                      "related": {
-                        "href": "http://testserver/articles/2d1686b9-6a5d-44a3-b707-0f4cafa842b5/author/"
-                      }
+                      "related": "http://testserver/articles/2d1686b9-6a5d-44a3-b707-0f4cafa842b5/author/"
                     },
                     "data": {
                       "type": "people",

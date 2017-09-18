@@ -1,5 +1,5 @@
 """
-DRF serializers implementing the various JSON API objects.
+DRF serializers describing and implementing the JSON API format.
 """
 
 import collections
@@ -19,6 +19,7 @@ from rest_framework import exceptions
 from rest_framework import serializers
 from rest_framework import relations
 
+from drf_extra_fields import generic
 from drf_extra_fields import parameterized
 
 
@@ -36,7 +37,7 @@ class JSONAPIPrimaryDataSerializer(
     type = parameterized.SerializerParameterField(
         label='Resource Type',
         help_text='the type of this resource',
-        required=True)
+        required=True, source="*")
 
     @functional.cached_property
     def many_serializer(self):
@@ -203,6 +204,28 @@ class JSONAPIPrimaryDataSerializer(
             return errors
 
 
+class JSONAPIResourceIdentifierSerializer(JSONAPIPrimaryDataSerializer):
+    """
+    Common serializer support for JSON API objects with resource identifiers.
+    """
+
+    primary = False
+    # Include only `type` and `id`
+    exclude_parameterized = True
+
+    def to_internal_value(self, data):
+        """
+        Return only the ID.
+        """
+        value = super(
+            JSONAPIResourceIdentifierSerializer, self).to_internal_value(data)
+
+        # Get the ID field from the specific serializer
+        id_field = list(value.serializer.fields.values())[0]
+        # Return only the ID as DRF expects for relationships
+        return id_field.get_attribute(value)
+
+
 class JSONAPIMetaContainerSerializer(serializers.Serializer):
     """
     Common serializer support for objects with a non-standard `meta` key.
@@ -219,25 +242,43 @@ class JSONAPILinkSerializer(JSONAPIMetaContainerSerializer):
     Serializer for a JSON API link object.
     """
 
-    href = serializers.URLField(
+    # The common case in the JSON API examples is for links to be simple
+    # string URLs, so default to that.
+    # TODO take from app settings
+    as_url_string = True
+
+    href = generic.HyperlinkedGenericRelationsField(
         label='Link URL', help_text="a string containing the link's URL.",
-        required=True)
+        lookup_field='uuid', required=True)
+
+    def __init__(
+            self, instance=None, data=serializers.empty,
+            as_url_string=None, **kwargs):
+        """
+        Support specifying whether to use a flat URL string.
+        """
+        super(JSONAPILinkSerializer, self).__init__(
+            instance=instance, data=data, **kwargs)
+        if as_url_string is not None:
+            self.as_url_string = as_url_string
 
     def to_internal_value(self, data):
         """
         Optionally accept a URL directly.
         """
         if not isinstance(data, collections_abc.Mapping):
-            return self.fields['href'].to_internal_value(data)
-        return super(JSONAPILinkSerializer, self).to_internal_value(data)
+            data = {"href": data}
+        return self.fields['href'].get_attribute(
+            super(JSONAPILinkSerializer, self).to_internal_value(data))
 
     def to_representation(self, instance):
         """
         Optionally return a URL directly.
         """
-        if not isinstance(instance, collections_abc.Mapping):
-            return self.fields['href'].to_representation(instance)
-        return super(JSONAPILinkSerializer, self).to_representation(instance)
+        data = super(JSONAPILinkSerializer, self).to_representation(instance)
+        if self.as_url_string:
+            data = self.fields['href'].get_value(data)
+        return data
 
 
 class JSONAPILinksSerializer(serializers.Serializer):
@@ -257,18 +298,57 @@ class JSONAPILinksSerializer(serializers.Serializer):
 
     # Pagination links
     # TODO integrate with DRF pagination
-    first = serializers.URLField(
+    first = JSONAPILinkSerializer(
         label='First Page', help_text='the first page of data',
         required=False)
-    last = serializers.URLField(
+    last = JSONAPILinkSerializer(
         label='Last Page', help_text='the last page of data',
         required=False)
-    prev = serializers.URLField(
+    prev = JSONAPILinkSerializer(
         label='Prev Page', help_text='the previous page of data',
         required=False)
-    next = serializers.URLField(
+    next = JSONAPILinkSerializer(
         label='Next Page', help_text='the next page of data',
         required=False)
+
+    def to_internal_value(self, data):
+        """
+        Validate but omit links.
+        """
+        super(JSONAPILinksSerializer, self).to_internal_value(data)
+        return {}
+
+    def to_representation(self, instance):
+        """
+        Move the ID field out of the attributes.
+        """
+        instance = getattr(
+            getattr(instance, 'serializer', None), 'instance', instance)
+
+        if isinstance(self.parent, JSONAPIRelationshipSerializer):
+            link_field = self.fields['related']
+            # TODO `self` link for the relationship itself
+        else:
+            link_field = self.fields['self']
+
+        link_value = collections.OrderedDict()
+        if isinstance(self.parent, JSONAPIDocumentSerializer):
+            if 'request' in self.context:
+                # Use the current view for the link
+                serializers.set_value(
+                    link_value, link_field.fields['href'].source_attrs,
+                    # Reconstitute an "instance" from the request url
+                    link_field.fields['href'].to_internal_value(
+                        self.context['request'].get_raw_uri()))
+        else:
+            serializers.set_value(
+                link_value, link_field.fields['href'].source_attrs, instance)
+
+        value = collections.OrderedDict()
+        serializers.set_value(
+            value, link_field.source_attrs, link_value)
+
+        return super(JSONAPILinksSerializer, self).to_representation(value)
 
 
 class JSONAPILinkableSerializer(serializers.Serializer):
@@ -279,28 +359,7 @@ class JSONAPILinkableSerializer(serializers.Serializer):
     links = JSONAPILinksSerializer(
         label='Links',
         help_text='a links object containing links related to the resource.',
-        required=False)
-
-
-class JSONAPIResourceIdentifierSerializer(JSONAPIPrimaryDataSerializer):
-    """
-    Common serializer support for JSON API objects with resource identifiers.
-    """
-
-    # Use just `type` and `id`
-    skip_parameterized = False
-    exclude_parameterized = True
-
-    def to_internal_value(self, data):
-        """
-        Translate JSON API resource identifier to the ID DRF expects.
-        """
-        value = super(
-            JSONAPIResourceIdentifierSerializer, self).to_internal_value(data)
-        if isinstance(value, list):
-            return value
-
-        return value.clone.fields['id'].get_attribute(value)
+        required=False, source="*")
 
 
 class JSONAPIRelationshipSerializer(
@@ -312,8 +371,15 @@ class JSONAPIRelationshipSerializer(
     MUST_HAVE_ONE_OF = ('links', 'data', 'meta')
 
     data = JSONAPIResourceIdentifierSerializer(
-        label='Resource', help_text='the document\'s "primary data"',
+        label='Resource', help_text='the relationship\'s "primary data"',
         required=False, partial=True)
+
+    # Have to override not to use `source="*"` because relationship objects
+    # require manual handling of `data`
+    links = JSONAPILinksSerializer(
+        label='Links',
+        help_text='a links object containing links related to the resource.',
+        required=False)
 
     default_error_messages = {
         'missing_must': (
@@ -323,24 +389,46 @@ class JSONAPIRelationshipSerializer(
 
     def to_internal_value(self, data):
         """
-        Translate JSON API relationship representation to what DRF consumes.
+        Translate JSON API relationship representation to the ID DRF consumes.
         """
         if not set(data).intersection(self.MUST_HAVE_ONE_OF):
             self.fail('missing_must')
+
         value = super(
             JSONAPIRelationshipSerializer, self).to_internal_value(data)
-        # Return only the primary data
         return self.fields['data'].get_attribute(value)
+
+    def to_representation(self, value):
+        """
+        Translate the DRF related instances/IDs into the JSON API format.
+        """
+        instance = collections.OrderedDict()
+        serializers.set_value(
+            instance, self.fields['data'].source_attrs, value)
+        serializers.set_value(
+            instance, self.fields['links'].source_attrs, value)
+        return super(JSONAPIRelationshipSerializer, self).to_representation(
+            instance)
 
 
 class JSONAPIResourceSerializer(
-        JSONAPIPrimaryDataSerializer, JSONAPILinkableSerializer,
-        JSONAPIMetaContainerSerializer):
+        JSONAPIPrimaryDataSerializer,
+        JSONAPILinkableSerializer, JSONAPIMetaContainerSerializer):
     """
     Serializer for the JSON API specific aspects of a resource.
     """
 
-    RESERVED_FIELDS = {'type', 'id'}
+    # In addition, a resource object MAY contain any of these top-level
+    # members:
+    attributes = serializers.DictField(
+        label='Resource Attributes',
+        help_text="an object representing some of the resource's data.",
+        required=False, source='*')
+    relationships = serializers.DictField(
+        label='Related Resources',
+        help_text='a relationships object describing relationships '
+        'between the resource and other JSON API resources.',
+        required=False, source='*', child=JSONAPIRelationshipSerializer())
 
     default_error_messages = {
         'reserved_field': (
@@ -348,19 +436,13 @@ class JSONAPIResourceSerializer(
         'field_conflicts': (
             'A resource can not have `attributes` and `relationships` '
             'with the same name: {fields}.'),
+        'id_field_in_attributes': (
+            'A resource must not include the ID field in the attributes'),
     }
 
-    # In addition, a resource object MAY contain any of these top-level
-    # members:
-    attributes = serializers.DictField(
-        label='Resource Attributes',
-        help_text="an object representing some of the resource's data.",
-        required=False)
-    relationships = serializers.DictField(
-        label='Related Resources',
-        help_text='a relationships object describing relationships '
-        'between the resource and other JSON API resources.',
-        required=False, child=JSONAPIRelationshipSerializer())
+    primary = False
+
+    json_api_reserved_fields = {'type', 'id'}
 
     def to_internal_value(self, data):
         """
@@ -370,23 +452,20 @@ class JSONAPIResourceSerializer(
             return super(
                 JSONAPIResourceSerializer, self).to_internal_value(data)
 
-        # Do validation here while it's still in JSON API format
+        value = super(
+            JSONAPIResourceSerializer, self).to_internal_value(data)
+
+        # Do validation on original data but after normal validation to
+        # include required and basic type validation
         errors = collections.OrderedDict()
 
         attributes = self.fields['attributes'].get_value(data)
-        if attributes is serializers.empty:
-            value = {}
-        else:
-            value = attributes.copy()
         relationships = self.fields['relationships'].get_value(data)
-        if relationships is not serializers.empty:
-            relationships_value = self.fields[
-                'relationships'].to_internal_value(relationships)
         for member, jsonapi in (
-                ('attributes', value), ('relationships', relationships)):
+                ('attributes', attributes), ('relationships', relationships)):
             if jsonapi is serializers.empty:
                 continue
-            reserved = self.RESERVED_FIELDS.intersection(jsonapi)
+            reserved = self.json_api_reserved_fields.intersection(jsonapi)
             if reserved:
                 try:
                     self.fail(
@@ -396,8 +475,8 @@ class JSONAPIResourceSerializer(
                     errors[member] = exc.detail
                     continue
 
-        if serializers.empty not in [value, relationships]:
-            conflicts = set(value).intersection(relationships)
+        if serializers.empty not in [attributes, relationships]:
+            conflicts = set(attributes).intersection(relationships)
             if conflicts:
                 try:
                     self.fail('field_conflicts', fields=', '.join(repr(
@@ -408,62 +487,48 @@ class JSONAPIResourceSerializer(
         if errors:
             raise exceptions.ValidationError(errors)
 
-        value["type"] = self.fields['type'].get_value(data)
-        value["id"] = self.fields['id'].get_value(data)
-
-        # Lookup the per-type serializer so we can introspect related fields
-        self.clone_meta['parameter_field'].to_internal_value(
-            self.clone_meta['parameter_field'].get_value(data))
-        specific = self.clone_meta[
-            'parameter_field'].clone_specific_internal(data)
-
-        if relationships is serializers.empty:
-            return super(
-                JSONAPIResourceSerializer, self).to_internal_value(value)
-
-        # Move items from the `relationships` object and insert them into the
-        # main object as DRF expects internally
-        for field in specific.fields.values():
-
-            if (
-                    isinstance(field, (
-                        relations.RelatedField,
-                        relations.ManyRelatedField)) and
-                    field.field_name in relationships_value):
-                value[field.field_name] = field.get_attribute(
-                    relationships_value)
-
-        return super(JSONAPIResourceSerializer, self).to_internal_value(value)
+        return value
 
     def to_representation(self, instance):
         """
-        Translate the DRF internal format into the JSON API format.
+        Move the ID field out of the attributes.
         """
+        # Need to handle resource fields manually to separate out related
+        # fields.  Make sure the fields are bound and available in this scope
+        # and then remove them from our schema before normal processing.
+        fields = self.get_fields()
+        attributes_field = self.fields.setdefault(
+            'attributes', fields['attributes'])
+        self.fields.pop('attributes', None)
+        relationships_field = self.fields.setdefault(
+            'relationships', fields['relationships'])
+        self.fields.pop('relationships', None)
+
         data = super(JSONAPIResourceSerializer, self).to_representation(
             instance)
-        if isinstance(instance, list):
+        if isinstance(data, list):
             return data
 
-        relationships_data = collections.OrderedDict()
-        for field in data.clone.fields.values():
+        parameter_serializer = self.fields['type'].parameter_serializers[0]
+        attributes = collections.OrderedDict()
+        relationships = collections.OrderedDict()
+        for field_name, field in parameter_serializer.child.fields.items():
+            if field_name == self.fields['id'].source:
+                # Leave any ID field in the top-level
+                continue
             if isinstance(field, (
                     relations.RelatedField, relations.ManyRelatedField)):
-                relationship_instance = field.to_internal_value(
-                    field.get_value(data))
-                relationships_data[field.field_name] = self.fields[
-                    "relationships"].child.to_representation(
-                        {"data": relationship_instance})
-                data.pop(field.field_name)
+                relationships[field_name] = field.get_attribute(
+                    data.serializer.instance)
+            else:
+                attributes[field_name] = field.get_value(data)
+            del data[field_name]
+        data['attributes'] = attributes_field.to_representation(
+            attributes)
+        data['relationships'] = relationships_field.to_representation(
+            relationships)
 
-        resource = collections.OrderedDict()
-        resource["type"] = data.pop("type")
-        resource["id"] = data.pop("id")
-        if data:
-            resource["attributes"] = data
-        if relationships_data:
-            resource["relationships"] = relationships_data
-
-        return resource
+        return data
 
 
 class JSONAPIErrorLinksSerializer(serializers.Serializer):
@@ -585,7 +650,7 @@ class JSONAPIDocumentSerializer(
             'If a document does not contain a top-level data key, '
             'the `included` member MUST NOT be present either.'),
         'included_to_internal': (
-            'A document may not contain `included` resrouces on '
+            'A document may not contain `included` resources on '
             'incomming/write requrests: POST, PUT, PATCH, DELETE.'),
         'duplicate_resource': (
             'A document MUST NOT include more than one resource object '
@@ -596,9 +661,11 @@ class JSONAPIDocumentSerializer(
     # A document MUST contain at least one of the following top-level members
     data = JSONAPIResourceSerializer(
         label='Resource', help_text='the document\'s "primary data"',
+        # Can't use `source="*"` because primary data may be an array
         required=False)
     errors = serializers.ListField(
         label='Errors', help_text='an array of error objects',
+        # Can't use `source="*"` because primary data may be an array
         required=False, child=JSONAPIErrorSerializer(
             label='Error', help_text='an error object'))
 
@@ -615,7 +682,15 @@ class JSONAPIDocumentSerializer(
             label='Included Related Resource',
             help_text='a resource object that is related to the primary data '
             'and/or other included resources/'),
+        # Can't use `source="*"` because primary data may be an array
         required=False)
+
+    def __init__(self, *args, **kwargs):
+        """
+        Set the `data` parameterized serializers as primary.
+        """
+        super(JSONAPIDocumentSerializer, self).__init__(*args, **kwargs)
+        self.fields['data'].primary = True
 
     @classmethod
     def many_init(cls, *args, **kwargs):
@@ -667,16 +742,28 @@ class JSONAPIDocumentSerializer(
 
     def to_representation(self, instance):
         """
-        Place the instance into the `data` key.
+        Generate a JSON API document for the resource.
         """
-        data = super(JSONAPIDocumentSerializer, self).to_representation(
-            {"data": instance})
+        value = collections.OrderedDict()
+        serializers.set_value(
+            value, self.fields['data'].source_attrs, instance)
 
+        if isinstance(instance, exceptions.APIException):
+            # Being used in the exception handler
+            detail = instance.detail
+            if not isinstance(detail, list):
+                detail = [detail]
+            # Process a dict of errors into a JSON API array
+            TODO
+            serializers.set_value(
+                value, self.fields['errors'].source_attrs, detail)
+
+        data = super(JSONAPIDocumentSerializer, self).to_representation(value)
+
+        # Do any post-processing validation
         errors = collections.OrderedDict()
-
         self._validate_duplicates(
             data, errors, ('included', data.get('included', [])))
-
         if errors:
             raise exceptions.ValidationError(errors)
 
@@ -706,3 +793,21 @@ class JSONAPIDocumentSerializer(
                             member, *type_id)] = exc.detail
                 resource_ids.add(type_id)
         return resource_ids
+
+    def update(self, instance, validated_data):
+        """
+        Delegate to the primary data serializer
+        """
+        return validated_data.serializer.update(instance, validated_data)
+
+    def create(self, validated_data):
+        """
+        Delegate to the primary data serializer
+        """
+        return validated_data.serializer.create(validated_data)
+
+    def save(self, **kwargs):
+        """
+        Delegate to the primary data serializer
+        """
+        return self.validated_data.serializer.save(**kwargs)

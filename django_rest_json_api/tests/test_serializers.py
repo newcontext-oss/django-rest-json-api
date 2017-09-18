@@ -1,72 +1,185 @@
 import json
-import copy
-import operator
 
-from rest_framework import exceptions
 from rest_framework.settings import api_settings
+from rest_framework import exceptions
 
 from django_rest_json_api import serializers
 from django_rest_json_api import tests
 
+from django_rest_json_api_example import serializers as example_serializers
 from django_rest_json_api_example import models
-
-
-class ExampleDictErrorSerializer(serializers.JSONAPIResourceSerializer):
-    """
-    Raise a single dict error for tests.
-    """
-
-    def validate(self, attrs):
-        """
-        Raise a single dict error for tests.
-        """
-        raise exceptions.ValidationError({'foo': 'foo dict error'})
 
 
 class DRFJSONAPISerializerTests(tests.JSONAPITestCase):
 
-    def test_document(self):
+    def test_resource_internal_value(self):
         """
-        The document serializer handles JSON API example HAR.
+        The resource serializer desserializes JSON API resource identity.
         """
-        self.content.pop("included", None)
+        resource_serializer = serializers.JSONAPIResourceSerializer(
+            data=self.content["data"][0])
+        resource_serializer.is_valid(raise_exception=True)
+        article_serializer = example_serializers.ArticleSerializer(
+            data=example_serializers.ArticleSerializer(
+                instance=self.article).data)
+        article_serializer.is_valid(raise_exception=True)
+        self.assertEqual(
+            # Cast to normal dicts for more informative failures
+            dict(resource_serializer.validated_data),
+            dict(article_serializer.validated_data),
+            'Wrong deserialized internal value')
+        saved = resource_serializer.save()
+        self.assertIsInstance(
+            saved, models.Article,
+            'Wrong saved resource type')
+
+    def test_resource_internal_value_many(self):
+        """
+        The resource serializer desserializes multiple resources.
+        """
+        resource_serializer = serializers.JSONAPIResourceSerializer(
+            data=self.content["data"],
+            context=dict(request=self.articles_request))
+        resource_serializer.is_valid(raise_exception=True)
+        self.assertIsInstance(
+            resource_serializer.validated_data, list,
+            'Wrong deserialized multiple value type')
+        internal_value = resource_serializer.to_internal_value(
+            self.content["data"])
+        self.assertIsInstance(
+            internal_value, list,
+            'Wrong deserialized multiple value type')
+        validated_value = resource_serializer.validate(internal_value)
+        self.assertIsInstance(
+            validated_value, list,
+            'Wrong deserialized multiple value type')
+        article_serializer = example_serializers.ArticleSerializer(
+            data=example_serializers.ArticleSerializer(
+                instance=[self.article], many=True).data, many=True)
+        article_serializer.is_valid(raise_exception=True)
+        self.assertEqual(
+            # Cast to normal dicts for more informative failures
+            dict(resource_serializer.validated_data[0]),
+            dict(article_serializer.validated_data[0]),
+            'Wrong deserialized internal value')
+        self.assertEqual(
+            # Cast to normal dicts for more informative failures
+            dict(internal_value[0]),
+            dict(article_serializer.validated_data[0]),
+            'Wrong deserialized internal value')
+        self.assertEqual(
+            # Cast to normal dicts for more informative failures
+            dict(validated_value[0]),
+            dict(article_serializer.validated_data[0]),
+            'Wrong deserialized internal value')
+        saved = resource_serializer.save()
+        self.assertIsInstance(
+            resource_serializer.data, list,
+            'Wrong saved representation multiple value type')
+        self.assertIsInstance(
+            saved, list,
+            'Wrong saved instance type')
+        self.assertIsInstance(
+            saved[0], models.Article,
+            'Wrong saved instance type')
+        with self.assertRaises(NotImplementedError):
+            resource_serializer.save()
+        updated = resource_serializer.update(
+            saved[0], resource_serializer.validated_data[0])
+        self.assertIsInstance(
+            updated, models.Article,
+            'Wrong updated instance type')
+
+    def test_resource_representation(self):
+        """
+        The resource serializer sserializes JSON API resource identity.
+        """
+        resource_serializer = serializers.JSONAPIResourceSerializer(
+            instance=self.article,
+            context=dict(request=self.article_request))
+        self.assertEqual(
+            json.loads(json.dumps(resource_serializer.data)),
+            self.content["data"][0],
+            'Wrong serialized representation')
+
+    def test_link_as_url_string(self):
+        """
+        The link serializer accepts an argument to use URL strings.
+        """
+        link_serializer = serializers.JSONAPILinkSerializer(
+            instance={'href': self.article},
+            context=dict(request=self.article_request),
+            as_url_string=True)
+        self.assertEqual(
+            link_serializer.to_representation(link_serializer.instance),
+            self.content["data"][0]["links"]["self"],
+            'Wrong link representation')
+
+    def test_document_internal_value(self):
+        """
+        The document serializer desserializes JSON API document identity.
+        """
         document_serializer = serializers.JSONAPIDocumentSerializer(
             data=self.content)
         document_serializer.is_valid(raise_exception=True)
         self.assertIsInstance(
+            document_serializer.validated_data, list,
+            'Wrong internal value type')
+        article_serializer = example_serializers.ArticleSerializer(
+            data=example_serializers.ArticleSerializer(
+                instance=[self.article], many=True).data, many=True)
+        article_serializer.is_valid(raise_exception=True)
+        self.assertEqual(
             document_serializer.validated_data,
-            type(self.content["data"]),
-            'Wrong parsed JSON API primary data type')
-        self.assertIn(
-            'uuid', document_serializer.validated_data[0],
-            'Missing parsed JSON API ID')
+            article_serializer.validated_data,
+            'Wrong deserialized internal value')
+
+    def test_document_internal_value_single(self):
+        """
+        The document serializer desserializes JSON API document identity.
+        """
+        self.content["data"] = self.content["data"][0]
+        document_serializer = serializers.JSONAPIDocumentSerializer(
+            data=self.content)
+        document_serializer.is_valid(raise_exception=True)
+        self.assertIsInstance(
+            document_serializer.validated_data, dict,
+            'Wrong internal value type')
+        article_serializer = example_serializers.ArticleSerializer(
+            data=example_serializers.ArticleSerializer(
+                instance=self.article).data)
+        article_serializer.is_valid(raise_exception=True)
         self.assertEqual(
-            str(document_serializer.validated_data[0]['uuid']),
-            self.content['data'][0]['id'],
-            'Wrong parsed JSON API ID value')
-        self.assertIn(
-            'title', document_serializer.validated_data[0],
-            'Missing parsed JSON API field')
+            document_serializer.validated_data,
+            article_serializer.validated_data,
+            'Wrong deserialized internal value')
+        updated = document_serializer.update(
+            self.article, document_serializer.validated_data)
+        self.assertIsInstance(
+            updated, models.Article,
+            'Wrong updated type')
+        created = document_serializer.create(
+            document_serializer.validated_data)
+        self.assertIsInstance(
+            created, models.Article,
+            'Wrong created type')
+        saved = document_serializer.save()
+        self.assertIsInstance(
+            saved, models.Article,
+            'Wrong saved type')
+
+    def test_document_representation(self):
+        """
+        The document serializer sserializes JSON API document identity.
+        """
+        document_serializer = serializers.JSONAPIDocumentSerializer(
+            instance=[self.article],
+            context=dict(request=self.articles_request))
+        # Normalize OrderedDicts to dicts for assertions
+        data = json.loads(json.dumps(document_serializer.data))
         self.assertEqual(
-            document_serializer.validated_data[0]['title'],
-            self.content['data'][0]['attributes']['title'],
-            'Wrong parsed JSON API field value')
-        self.assertIn(
-            'author', document_serializer.validated_data[0],
-            'Parsed JSON API missing 1-to-1 relationship')
-        self.assertIsInstance(
-            document_serializer.validated_data[0]['author'], models.Person,
-            'Wrong parsed JSON API 1-to-1 relationship type')
-        self.assertIn(
-            'comments', document_serializer.validated_data[0],
-            'Parsed JSON API missing 1-to-many relationship')
-        self.assertIsInstance(
-            document_serializer.validated_data[0]['comments'], list,
-            'Wrong parsed JSON API 1-to-many relationship type')
-        self.assertIsInstance(
-            document_serializer.validated_data[0]['comments'][0],
-            models.Comment,
-            'Wrong parsed JSON API 1-to-many relationship type')
+            data, self.content,
+            'Wrong serialized representation')
 
     def test_document_missing_must(self):
         """
@@ -87,79 +200,21 @@ class DRFJSONAPISerializerTests(tests.JSONAPITestCase):
             cm.exception.detail[api_settings.NON_FIELD_ERRORS_KEY][0].lower(),
             'Wrong required member validation')
 
-    def test_multiple_resource_serializer(self):
+    def test_single_resource_validation(self):
         """
-        The resource serializer handles multiple resources.
+        The resource serializer handles single resource validation errors.
         """
-        multi_serializer = serializers.JSONAPIResourceSerializer(
-            data=self.content["data"])
-        multi_serializer.is_valid(raise_exception=True)
-        self.assertIsInstance(
-            multi_serializer.data, type(self.content["data"]),
-            'Wrong multiple resource type')
-        self.assertIsInstance(
-            multi_serializer.to_internal_value(self.content["data"]),
-            type(self.content["data"]),
-            'Wrong multiple resource type')
-        self.assertIsInstance(
-            multi_serializer.to_internal_value(
-                self.content["data"][0]),
-            type(self.content["data"][0]),
-            'Wrong single resource type')
-        saved = multi_serializer.save()
-        self.assertIsInstance(
-            saved, type(self.content["data"]),
-            'Wrong saved instance type')
-        self.assertIsInstance(
-            saved[0], models.Article,
-            'Wrong saved instance type')
-        with self.assertRaises(NotImplementedError):
-            multi_serializer.save()
-        updated = multi_serializer.update(
-            saved[0], multi_serializer.validated_data[0])
-        self.assertIsInstance(
-            updated, models.Article,
-            'Wrong updated instance type')
-
-    def test_single_resource_serializer(self):
-        """
-        The resource serializer handles single resources.
-        """
-        resource_serializer = serializers.JSONAPIResourceSerializer(
+        del self.content["data"][0]["id"]
+        single_serializer = serializers.JSONAPIResourceSerializer(
             data=self.content["data"][0])
-        resource_serializer.is_valid(raise_exception=True)
-        saved = resource_serializer.save()
-        self.assertIsInstance(
-            saved, models.Article,
-            'Wrong saved instance type')
+        with self.assertRaises(exceptions.ValidationError) as cm:
+            single_serializer.is_valid(raise_exception=True)
         self.assertIn(
-            'id', resource_serializer.data,
-            'Single resource missing field')
-
-        validated = resource_serializer.validate(
-            self.content["data"])
-        self.assertIsInstance(
-            validated, type(self.content["data"]),
-            'Wrong multiple resource type')
-
-    def test_multiple_resource_identifier_serializer(self):
-        """
-        The resource serializer handles multiple resource identifiers.
-        """
-        multi_identifiers = self.content["data"][0]["relationships"][
-            "comments"]["data"]
-        identifier_serializer = (
-            serializers.JSONAPIResourceIdentifierSerializer(
-                data=multi_identifiers))
-        identifier_serializer.is_valid(raise_exception=True)
-        self.assertIsInstance(
-            identifier_serializer.validated_data,
-            type(multi_identifiers),
-            'Wrong multiple identifiers type')
-        self.assertIsInstance(
-            identifier_serializer.to_internal_value(multi_identifiers),
-            type(multi_identifiers),
-            'Wrong multiple identifiers type')
+            'id', cm.exception.detail,
+            'Missing required field validation')
+        self.assertIn(
+            'required', cm.exception.detail['id'][0],
+            'Wrong required field validation error')
 
     def test_multiple_resource_validation(self):
         """
@@ -183,52 +238,6 @@ class DRFJSONAPISerializerTests(tests.JSONAPITestCase):
             'required', multi_serializer.errors[0]['id'][0],
             'Wrong required field validation error')
 
-    def test_single_resource_validation(self):
-        """
-        The resource serializer handles single resource validation errors.
-        """
-        del self.content["data"][0]["id"]
-        single_serializer = serializers.JSONAPIResourceSerializer(
-            data=self.content["data"][0])
-        with self.assertRaises(exceptions.ValidationError) as cm:
-            single_serializer.is_valid(raise_exception=True)
-        self.assertIn(
-            'id', cm.exception.detail,
-            'Missing required field validation')
-        self.assertIn(
-            'required', cm.exception.detail['id'][0],
-            'Wrong required field validation error')
-
-    def test_link_serializer(self):
-        """
-        The link serializer handler both link objects and URL strings.
-        """
-        link_serializer = serializers.JSONAPILinkSerializer(
-            instance=self.content["data"][0]["relationships"]["author"][
-                "links"]["related"])
-        self.assertIsInstance(
-            link_serializer.data,
-            type(self.content["data"][0]["relationships"]["author"][
-                "links"]["related"]),
-            'Wrong link object type')
-        url_serializer = serializers.JSONAPILinkSerializer(
-            instance=self.content["links"]["self"])
-        self.assertIsInstance(
-            url_serializer.to_representation(
-                self.content["links"]["self"]),
-            type(self.content["links"]["self"]),
-            'Wrong string URL type')
-
-    def test_single_resource(self):
-        """
-        The document serializer handles a single resource instead of an array.
-        """
-        self.content["data"] = self.content["data"][0]
-        self.content.pop("included", None)
-        document_serializer = serializers.JSONAPIDocumentSerializer(
-            data=self.content)
-        document_serializer.is_valid(raise_exception=True)
-
     def test_field_reserved_conflict_validation(self):
         """
         The document serializer validates reserved field names and conflicts.
@@ -237,7 +246,6 @@ class DRFJSONAPISerializerTests(tests.JSONAPITestCase):
             "type"] = self.content["data"][0]["type"]
         self.content["data"][0]["relationships"][
             "type"] = self.content["data"][0]["relationships"]["author"]
-        self.content.pop("included", None)
         document_serializer = serializers.JSONAPIDocumentSerializer(
             data=self.content)
         with self.assertRaises(exceptions.ValidationError) as cm:
@@ -256,17 +264,15 @@ class DRFJSONAPISerializerTests(tests.JSONAPITestCase):
         """
         The document serializer validates field names if empty.
         """
-        self.content["data"][0]["attributes"][
+        self.author_jsonapi["attributes"][
             "type"] = self.content["data"][0]["type"]
-        del self.content["data"][0]["relationships"]
-        self.content.pop("included", None)
-        document_serializer = serializers.JSONAPIDocumentSerializer(
-            data=self.content)
+        resource_serializer = serializers.JSONAPIResourceSerializer(
+            data=self.author_jsonapi)
         with self.assertRaises(exceptions.ValidationError) as cm:
-            document_serializer.is_valid(raise_exception=True)
+            resource_serializer.is_valid(raise_exception=True)
         self.assertIn(
             "a resource can not have 'attributes' fields named",
-            cm.exception.detail["data"][0]["attributes"][0].lower(),
+            cm.exception.detail["attributes"][0].lower(),
             'Wrong reserved field name validation error')
 
     def test_relationships_type_validation(self):
@@ -275,14 +281,13 @@ class DRFJSONAPISerializerTests(tests.JSONAPITestCase):
         """
         self.content["data"][0]["relationships"] = [
             self.content["data"][0]["relationships"]]
-        self.content.pop("included", None)
         document_serializer = serializers.JSONAPIDocumentSerializer(
             data=self.content)
         with self.assertRaises(exceptions.ValidationError) as cm:
             document_serializer.is_valid(raise_exception=True)
         self.assertIn(
             'expected a dictionary',
-            cm.exception.detail["data"][0][0].lower(),
+            cm.exception.detail["data"][0]['relationships'][0].lower(),
             'Wrong relationships object type validation error')
 
     def test_relationships_missing_must_validation(self):
@@ -295,26 +300,14 @@ class DRFJSONAPISerializerTests(tests.JSONAPITestCase):
                 serializers.JSONAPIRelationshipSerializer.MUST_HAVE_ONE_OF)
             for member in must_members:
                 relationship.pop(member, None)
-        self.content.pop("included", None)
         document_serializer = serializers.JSONAPIDocumentSerializer(
             data=self.content)
         with self.assertRaises(exceptions.ValidationError) as cm:
             document_serializer.is_valid(raise_exception=True)
         self.assertIn(
             'must contain at least one',
-            cm.exception.detail["data"][0][0].lower(),
+            cm.exception.detail["data"][0]['relationships'][0].lower(),
             'Wrong relationships object missing must validation error')
-
-    def test_relationships_missing(self):
-        """
-        The document serializer handles missing relationships.
-        """
-        person = self.content["included"][0]
-        del person["attributes"]
-        resource_serializer = serializers.JSONAPIResourceSerializer(
-            data=person)
-        with self.assertRaises(exceptions.ValidationError):
-            resource_serializer.is_valid(raise_exception=True)
 
     def test_errors_w_data_validation(self):
         """
@@ -335,7 +328,8 @@ class DRFJSONAPISerializerTests(tests.JSONAPITestCase):
         The document serializer validates against duplicated resources.
         """
         document_serializer = serializers.JSONAPIDocumentSerializer(
-            instance=[self.article, self.article])
+            instance=[self.article, self.article],
+            context=dict(request=self.articles_request))
         with self.assertRaises(exceptions.ValidationError) as cm:
             document_serializer.data
         self.assertIn(
@@ -383,60 +377,16 @@ class DRFJSONAPISerializerTests(tests.JSONAPITestCase):
             cm.exception.detail['version'][0].lower(),
             'Wrong version validation error')
 
-    def test_dict_to_representation(self):
+    def test_included_internal_value_validation(self):
         """
-        Test rendering an dictionary to a JSON API representation.
+        Included resources on POST are undefined.
         """
-        article_jsonapi = self.content["data"][0]
-
-        # TODO Ignore optional JSON API keys until implemented
-        self.content.pop("included", None)
-        self.content.pop("links", None)
-        article_jsonapi.pop("links", None)
-        for relationship in article_jsonapi["relationships"].values():
-            relationship.pop("links", None)
-
-        article_dict = copy.deepcopy(article_jsonapi["attributes"])
-        article_dict["type"] = article_jsonapi["type"]
-        article_dict["uuid"] = article_jsonapi["id"]
-        article_dict["author"] = copy.deepcopy(article_jsonapi[
-            "relationships"]["author"]["data"])
-        article_dict["author"]["uuid"] = article_dict["author"].pop("id")
-        article_dict["comments"] = copy.deepcopy(article_jsonapi[
-            "relationships"]["comments"]["data"])
-        for comment in article_dict["comments"]:
-            comment["uuid"] = comment.pop("id")
+        self.content['included'] = self.included
         document_serializer = serializers.JSONAPIDocumentSerializer(
-            instance=[article_dict])
-        self.assertEqual(
-            # Normalize OrderedDicts
-            json.loads(json.dumps(document_serializer.data)),
-            self.content,
-            'Wrong JSON API representation content')
-
-    def test_instance_to_representation(self):
-        """
-        Test rendering a django ORM instance to a JSON API representation.
-        """
-        self.content = self.entry["response"]["content"]["text"].copy()
-        article_jsonapi = self.content["data"][0]
-
-        # TODO Ignore optional JSON API keys until implemented
-        self.content.pop("included", None)
-        self.content.pop("links", None)
-        article_jsonapi.pop("links", None)
-        for relationship in article_jsonapi["relationships"].values():
-            relationship.pop("links", None)
-
-        document_serializer = serializers.JSONAPIDocumentSerializer(
-            instance=[self.article])
-        # Normalize OrderedDicts
-        serializer_data = json.loads(json.dumps(document_serializer.data))
-        # Make sure multiple relationships are in the same order
-        serializer_data["data"][0]["relationships"][
-            "comments"]["data"].sort(key=operator.itemgetter("id"))
-        self.content["data"][0]["relationships"][
-            "comments"]["data"].sort(key=operator.itemgetter("id"))
-        self.assertEqual(
-            serializer_data, self.content,
-            'Wrong JSON API representation content')
+            data=self.content)
+        with self.assertRaises(exceptions.ValidationError) as cm:
+            document_serializer.is_valid(raise_exception=True)
+        self.assertIn(
+            'may not contain `included`',
+            cm.exception.detail['included'][0].lower(),
+            'Wrong `errors` with `data` validation error')

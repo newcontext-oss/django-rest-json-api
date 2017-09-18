@@ -1,10 +1,10 @@
-from rest_framework import viewsets
+from drf_extra_fields import serializer_formats as viewsets
 
 from django_rest_json_api_example import models
 from django_rest_json_api_example import serializers
 
 
-class PeopleViewSet(viewsets.ModelViewSet):
+class PeopleViewSet(viewsets.UUIDModelViewSet):
     """
     JSON API example authors endpoint.
     """
@@ -12,7 +12,7 @@ class PeopleViewSet(viewsets.ModelViewSet):
     serializer_class = serializers.PersonSerializer
 
 
-class ArticlesViewSet(viewsets.ModelViewSet):
+class ArticlesViewSet(viewsets.UUIDModelViewSet):
     """
     JSON API example articles endpoint.
     """
@@ -20,7 +20,7 @@ class ArticlesViewSet(viewsets.ModelViewSet):
     serializer_class = serializers.ArticleSerializer
 
 
-class CommentsViewSet(viewsets.ModelViewSet):
+class CommentsViewSet(viewsets.UUIDModelViewSet):
     """
     JSON API example comments endpoint.
     """
