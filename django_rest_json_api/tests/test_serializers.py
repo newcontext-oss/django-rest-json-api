@@ -1,5 +1,7 @@
 import json
 
+import pkg_resources
+
 from rest_framework.settings import api_settings
 from rest_framework import exceptions
 
@@ -347,6 +349,21 @@ class DRFJSONAPISerializerTests(tests.JSONAPITestCase):
                 self.article.uuid)][0].lower(),
             'Wrong `errors` with `data` validation error')
         self.skipTest('TODO add coverage when we implement included')
+
+    def test_version_internal_value(self):
+        """
+        The JSON API version is parsed.
+        """
+        version_serializer = serializers.JSONAPIImplementationSerializer(
+            data=self.content["jsonapi"])
+        version_serializer.is_valid(raise_exception=True)
+        self.assertIn(
+            'version', version_serializer.validated_data,
+            'Missing JSON API version')
+        self.assertIsInstance(
+            version_serializer.validated_data['version'],
+            pkg_resources.SetuptoolsVersion,
+            'Wrong JSON API parsed version type')
 
     def test_version_validation(self):
         """
