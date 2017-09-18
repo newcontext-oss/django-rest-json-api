@@ -112,10 +112,16 @@ class DRFJSONAPISerializerTests(tests.JSONAPITestCase):
             instance={'href': self.article},
             context=dict(request=self.article_request),
             as_url_string=True)
+        representation = link_serializer.to_representation(
+            link_serializer.instance)
         self.assertEqual(
-            link_serializer.to_representation(link_serializer.instance),
+            representation,
             self.content["data"][0]["links"]["self"],
             'Wrong link representation')
+        value = link_serializer.to_internal_value(representation)
+        self.assertEqual(
+            value, self.article,
+            'Wrong link internal value')
 
     def test_document_internal_value(self):
         """
