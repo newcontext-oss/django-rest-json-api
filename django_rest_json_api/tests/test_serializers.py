@@ -339,26 +339,6 @@ class DRFJSONAPISerializerTests(tests.JSONAPITestCase):
             'Wrong `errors` with `data` validation error')
         self.skipTest('TODO add coverage when we implement included')
 
-    def test_errors(self):
-        """
-        The document serializer handles JSON API errors objects.
-        """
-        self.setUpHAR('error.api+json.har.json')
-        document_serializer = serializers.JSONAPIDocumentSerializer(
-            data=self.content)
-        document_serializer.is_valid(raise_exception=True)
-        self.assertIsInstance(
-            document_serializer.validated_data,
-            type(self.content["errors"]),
-            'Wrong validated data JSON API errors type.')
-        error = dict(
-            document_serializer.validated_data[0],
-            status=str(document_serializer.validated_data[0]["status"]),
-            source=dict(document_serializer.validated_data[0]["source"]))
-        self.assertEqual(
-            error, self.content["errors"][0],
-            'Validated data missing JSON API errors array.')
-
     def test_version_validation(self):
         """
         The JSON API version is validated.

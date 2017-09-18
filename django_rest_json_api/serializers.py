@@ -234,7 +234,7 @@ class JSONAPIMetaContainerSerializer(serializers.Serializer):
     meta = serializers.DictField(
         label='Meta Object',
         help_text='a meta object that contains non-standard meta-information.',
-        required=False)
+        required=False, read_only=True)
 
 
 class JSONAPILinkSerializer(JSONAPIMetaContainerSerializer):
@@ -311,13 +311,6 @@ class JSONAPILinksSerializer(serializers.Serializer):
         label='Next Page', help_text='the next page of data',
         required=False)
 
-    def to_internal_value(self, data):
-        """
-        Validate but omit links.
-        """
-        super(JSONAPILinksSerializer, self).to_internal_value(data)
-        return {}
-
     def to_representation(self, instance):
         """
         Move the ID field out of the attributes.
@@ -359,7 +352,7 @@ class JSONAPILinkableSerializer(serializers.Serializer):
     links = JSONAPILinksSerializer(
         label='Links',
         help_text='a links object containing links related to the resource.',
-        required=False, source="*")
+        required=False, read_only=True, source="*")
 
 
 class JSONAPIRelationshipSerializer(
@@ -379,7 +372,7 @@ class JSONAPIRelationshipSerializer(
     links = JSONAPILinksSerializer(
         label='Links',
         help_text='a links object containing links related to the resource.',
-        required=False)
+        required=False, read_only=True)
 
     default_error_messages = {
         'missing_must': (
@@ -666,14 +659,14 @@ class JSONAPIDocumentSerializer(
     errors = serializers.ListField(
         label='Errors', help_text='an array of error objects',
         # Can't use `source="*"` because primary data may be an array
-        required=False, child=JSONAPIErrorSerializer(
+        required=False, read_only=True, child=JSONAPIErrorSerializer(
             label='Error', help_text='an error object'))
 
     # A document MAY contain any of these top-level members:
     jsonapi = JSONAPIImplementationSerializer(
         label='JSON API Implementation',
         help_text="an object describing the server's implementation",
-        required=False, default={})
+        required=False, read_only=True, default={})
     included = serializers.ListField(
         label='Included Related Resources',
         help_text='an array of resource objects that are related '
@@ -683,7 +676,7 @@ class JSONAPIDocumentSerializer(
             help_text='a resource object that is related to the primary data '
             'and/or other included resources/'),
         # Can't use `source="*"` because primary data may be an array
-        required=False)
+        required=False, read_only=True)
 
     def __init__(self, *args, **kwargs):
         """
@@ -735,10 +728,7 @@ class JSONAPIDocumentSerializer(
             raise exceptions.ValidationError(errors)
 
         value = super(JSONAPIDocumentSerializer, self).to_internal_value(data)
-        try:
-            return self.fields['data'].get_attribute(value)
-        except serializers.SkipField:
-            return self.fields['errors'].get_attribute(value)
+        return self.fields['data'].get_attribute(value)
 
     def to_representation(self, instance):
         """
