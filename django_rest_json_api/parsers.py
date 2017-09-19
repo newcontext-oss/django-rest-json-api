@@ -9,6 +9,3 @@ class JSONAPIParser(parsers.JSONParser):
     """
     media_type = renderers.JSONAPIRenderer.media_type
     renderer_class = renderers.JSONAPIRenderer
-
-    serializer_class = renderers.JSONAPIRenderer.serializer_class
-    error_serializer_class = renderers.JSONAPIRenderer.error_serializer_class
