@@ -49,9 +49,6 @@ TODO
 
 Contributions for the following are particularly welcome:
 
-#. Test coverage on error object serializer
-#. DRF format/renderer/parser supporting JSON API on any endpoint alongside
-   other formats
 #. Support inflecting field/member names, e.g. ``inflection.dasherize()``
 #. ``...?sort=...`` `sort parameter`_ support
 #. ``...?filter=...`` `filter parameter`_ support
