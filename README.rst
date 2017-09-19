@@ -19,13 +19,54 @@ Install as any other Python package, for example::
 Usage
 -----
 
-``django_rest_json_api`` provides the following for re-use in other DRF projects:
+To enable the JSON API format via DRF renderers and parsers, your views must
+be DRF views that subclass
+``drf_extra_fields.serializer_formats.FormatAPIView``.  The
+``drf_extra_fields.serializer_formats`` module provides such subclasses which
+can be imported as if from ``rest_framework.generics`` and
+``rest_framework.viewsets``:
+
+.. code:: python
+
+    from drf_extra_fields import serializer_formats as viewsets
+
+    from my_app import models
+    from my_app import serializers
+
+
+    class MyViewSet(viewsets.UUIDModelViewSet):
+        """
+        A viewset supporting serializer-based DRF formats.
+        """
+        queryset = models.MyModel.objects.all()
+        serializer_class = serializers.MySerializer
+
+Finally, the JSON API renderer and parser must be enabled in your settings:
+
+.. code:: python
+
+    ...
+    REST_FRAMEWORK = {
+    ...
+        'DEFAULT_PARSER_CLASSES': (
+    ...
+            'django_rest_json_api.parsers.JSONAPIParser',
+    ...
+        ),
+        'DEFAULT_RENDERER_CLASSES': (
+    ...
+            'django_rest_json_api.renderers.JSONAPIRenderer',
+    ...
+        ),
+    ...
+
+``django_rest_json_api`` also provides the following for re-use in other DRF
+projects:
 
 ``django_rest_json_api.serializers``
   Serializers implementing the various JSON API objects.  This implementation
   currently defaults to using UUID's instead of DB pk IDs as the JSON IP
   resource ID and requires your models to have a ``uuid`` field.
-
 
 
 -----------------------
