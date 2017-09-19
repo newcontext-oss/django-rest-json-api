@@ -84,6 +84,27 @@ done once.  This may need to be run as root, such as with ``sudo``::
   $ tox
 
 
+----------
+Motivation
+----------
+
+The existing DRF JSON API implementation `djangorestframework-jsonapi`_
+requires too tight a coupling between endpoints and the format which prevents
+using the same endpoints with other formats.  In particular, it requires that
+your endpoint's serializers subclass `djangorestframework-jsonapi`_
+serializers which change the representation output by those serializers.
+
+This implementation seeks to be as loosely coupled as possible.  Currently it
+manages to require only that your endpoint's views subclass
+``drf_extra_fields.serializer_formats.FormatAPIView`` whose only change in
+behavior is to use the format's ``serializer_class``, if specified on the
+format, which in turn will delegate the endpoint-specific, non-format-specific
+back to the view's ``serializer_class``.
+
+The end result is that the same endpoints can be used with multiple different
+formats based on content negotiation, IOW the ``Content-Type`` and ``Accept``
+headers and the DRF ``format`` parameter and format suffixes.
+
 ----
 TODO
 ----
@@ -113,3 +134,5 @@ Contributions for the following are particularly welcome:
 .. _included resources parameter: http://jsonapi.org/format/#fetching-includes
 .. _sparse fieldsets parameter: http://jsonapi.org/format/#fetching-sparse-fieldsets
 .. _non-compliant query parameters: http://jsonapi.org/format/#query-parameters
+
+.. _djangorestframework-jsonapi: http://django-rest-framework-json-api.readthedocs.io/en/stable/
