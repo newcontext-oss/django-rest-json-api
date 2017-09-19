@@ -19,9 +19,9 @@ Install as any other Python package, for example::
 Usage
 -----
 
-`django_rest_json_api` provides the following for re-use in other DRF projects:
+``django_rest_json_api`` provides the following for re-use in other DRF projects:
 
-`django_rest_json_api.serializers`
+``django_rest_json_api.serializers``
   Serializers implementing the various JSON API objects.  This implementation
   currently defaults to using UUID's instead of DB pk IDs as the JSON IP
   resource ID and requires your models to have a ``uuid`` field.
@@ -32,12 +32,12 @@ Usage
 Developing/Contributing
 -----------------------
 
-Contributions are welcome as GitHub pull requests, `git format-patch` patches,
+Contributions are welcome as GitHub pull requests, ``git format-patch`` patches,
 etc..  Check that all tests pass on all supported environments before
 contributing.
 
 Before running tests the first time, install `tox`_.  This only needs to be
-done once.  This may need to be run as root, such as with `sudo`::
+done once.  This may need to be run as root, such as with ``sudo``::
 
   $ pip install tox
   $ tox
@@ -53,17 +53,17 @@ Contributions for the following are particularly welcome:
 #. DRF format/renderer/parser supporting JSON API on any endpoint alongside
    other formats
 #. Support inflecting field/member names, e.g. ``inflection.dasherize()``
-#. `...?sort=...` `sort parameter`_ support
-#. `...?filter=...` `filter parameter`_ support
-#. `...?page[...]=...` `page parameter`_ support
-#. `...?include=...` `included resources parameter`_ support
-#. `...?fields=...` `sparse fieldsets parameter`_ support
-#. Return `400 Bad Request` on `non-compliant query parameters`_
+#. ``...?sort=...`` `sort parameter`_ support
+#. ``...?filter=...`` `filter parameter`_ support
+#. ``...?page[...]=...`` `page parameter`_ support
+#. ``...?include=...`` `included resources parameter`_ support
+#. ``...?fields=...`` `sparse fieldsets parameter`_ support
+#. Return ``400 Bad Request`` on `non-compliant query parameters`_
 #. Support DB pk ID for the JSON API resource ``id`` as an option
 #. Support DRF nested routers per the jsonapi.org relationship link examples
 #. Add coverage and support for non-model serializers
 #. Figure out what to do with the code implementing the the JSON API standard
-   as DRF validation that isn't appropriate for `to_internal_value()`.
+   as DRF validation that isn't appropriate for ``to_internal_value()``.
   
 
 .. _JSON API specification: http://jsonapi.org/format/
