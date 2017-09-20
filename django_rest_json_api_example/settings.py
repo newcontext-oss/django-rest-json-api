@@ -136,6 +136,9 @@ STATIC_URL = '/static/'
 
 
 REST_FRAMEWORK = {
+    'DEFAULT_PAGINATION_CLASS':
+    'django_rest_json_api.pagination.PageNumberPagination',
+    'PAGE_SIZE': 1,
     'DEFAULT_RENDERER_CLASSES': (
         'rest_framework.renderers.JSONRenderer',
         'rest_framework.renderers.BrowsableAPIRenderer',

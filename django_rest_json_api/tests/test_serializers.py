@@ -4,12 +4,17 @@ import pkg_resources
 
 from rest_framework.settings import api_settings
 from rest_framework import exceptions
+from rest_framework import request
+from rest_framework import pagination
+from rest_framework import test
 
 from django_rest_json_api import serializers
+from django_rest_json_api import renderers
 from django_rest_json_api import tests
 
-from django_rest_json_api_example import serializers as example_serializers
 from django_rest_json_api_example import models
+from django_rest_json_api_example import serializers as example_serializers
+from django_rest_json_api_example import views
 
 
 class DRFJSONAPISerializerTests(tests.JSONAPITestCase):
@@ -180,6 +185,12 @@ class DRFJSONAPISerializerTests(tests.JSONAPITestCase):
         """
         The document serializer sserializes JSON API document identity.
         """
+        # Ignore pagination when using serializers directly
+        del self.content["links"]["first"]
+        del self.content["links"]["last"]
+        del self.content["links"]["prev"]
+        del self.content["links"]["next"]
+        del self.content["meta"]
         document_serializer = serializers.JSONAPIDocumentSerializer(
             instance=[self.article],
             context=dict(request=self.articles_request))
@@ -421,3 +432,26 @@ class DRFJSONAPISerializerTests(tests.JSONAPITestCase):
         self.assertEqual(
             flattened[0][1], str(detail[0][0]),
             'Wrong flattened error detail message')
+
+    def test_drf_default_pagination(self):
+        """
+        Test the JSON API handling of the DRF default pagination.
+        """
+        view = views.ArticlesViewSet()
+        factory = test.APIRequestFactory()
+        view.request = request.Request(factory.get('/articles/'))
+        view.format_kwarg = None
+        view.request.accepted_renderer = renderers.JSONAPIRenderer()
+        view.pagination_class = pagination.PageNumberPagination
+        view.request.accepted_renderer.pagination_serializer_class = (
+            serializers.JSONAPIPaginationSerializer)
+        response = view.list(view.request)
+        self.assertIn(
+            'links', response.data,
+            'Response missing top-level links')
+        self.assertIn(
+            'next', response.data['links'],
+            'Response missing pagination link')
+        self.assertIsNone(
+            response.data['links']['next'],
+            'Wrong pagination empty link value')

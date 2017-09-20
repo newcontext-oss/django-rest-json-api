@@ -36,28 +36,10 @@ class JSONAPITestCase(test_har.HARTestCase):
         super(JSONAPITestCase, self).setUp()
 
         article_jsonapi = self.content["data"][0]
-        people_jsonapi = {
-            included["id"]: included
-            for included in self.content["included"]
-            if included["type"] == "people"}
-        self.author_jsonapi = people_jsonapi[
-            article_jsonapi["relationships"]["author"]["data"]["id"]]
         comments_jsonapi = {
             included["id"]: included
-            for included in self.content["included"]
+            for included in self.included
             if included["type"] == "comments"}
-
-        # TODO Adjust relationship links until DRF nested routers are
-        # implemented
-        del self.content["links"]["next"]
-        del self.content["links"]["last"]
-        self.included = self.content.pop("included")
-        del article_jsonapi["relationships"]["author"]["links"]["self"]
-        article_jsonapi["relationships"]["author"]["links"][
-            "related"] = self.author_jsonapi["links"]["self"]
-        del article_jsonapi["relationships"]["comments"]["links"]["self"]
-        article_jsonapi["relationships"]["comments"]["links"][
-            "related"] = 'http://testserver/comments/'
 
         person_uuids = {
             comment_jsonapi["relationships"]["author"]["data"]["id"]
@@ -84,3 +66,32 @@ class JSONAPITestCase(test_har.HARTestCase):
                 kwargs=dict(uuid=self.article.uuid))))
         self.articles_request = request.Request(self.factory.post(
             reverse.reverse(models.Article._meta.model_name + '-list')))
+
+    def setUpHAR(self, example_har):
+        """
+        Doctor the loaded HAR as needed.
+        """
+        super(JSONAPITestCase, self).setUpHAR(example_har)
+        if 'data' not in self.content:
+            return
+
+        article_jsonapi = self.content["data"][0]
+        people_jsonapi = {
+            included["id"]: included
+            for included in self.content["included"]
+            if included["type"] == "people"}
+        self.author_jsonapi = people_jsonapi[
+            article_jsonapi["relationships"]["author"]["data"]["id"]]
+
+        # TODO Adjust relationship links until DRF nested routers are
+        # implemented
+        self.included = self.content.pop("included")
+        article_jsonapi["relationships"]["author"].get(
+            "links", {}).pop("self", None)
+        if "links" in self.author_jsonapi:
+            article_jsonapi["relationships"]["author"]["links"][
+                "related"] = self.author_jsonapi["links"]["self"]
+        if "comments" in article_jsonapi["relationships"]:
+            del article_jsonapi["relationships"]["comments"]["links"]["self"]
+            article_jsonapi["relationships"]["comments"]["links"][
+                "related"] = 'http://testserver/comments/'

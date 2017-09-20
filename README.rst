@@ -114,7 +114,6 @@ Contributions for the following are particularly welcome:
 #. Support inflecting field/member names, e.g. ``inflection.dasherize()``
 #. ``...?sort=...`` `sort parameter`_ support
 #. ``...?filter=...`` `filter parameter`_ support
-#. ``...?page[...]=...`` `page parameter`_ support
 #. ``...?include=...`` `included resources parameter`_ support
 #. ``...?fields=...`` `sparse fieldsets parameter`_ support
 #. Return ``400 Bad Request`` on `non-compliant query parameters`_

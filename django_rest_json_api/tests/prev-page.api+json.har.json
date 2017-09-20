@@ -5,7 +5,7 @@
       {
         "request": {
           "method": "GET",
-          "url": "http://testhost/articles/",
+          "url": "http://testhost/articles/?page=2",
           "headers" : [
             {
               "name": "Accept",
@@ -25,7 +25,7 @@
               },
               "meta": {
                 "pagination": {
-                  "page": 1,
+                  "page": 2,
                   "pages": 2,
                   "count": 2
                 }
@@ -34,8 +34,8 @@
                 "self": "http://testserver/articles/",
                 "first": "http://testserver/articles/?page=1",
                 "last": "http://testserver/articles/?page=2",
-                "prev": null,
-                "next": "http://testserver/articles/?page=2"
+                "prev": "http://testserver/articles/?page=1",
+                "next": null
               },
               "data": [{
                 "type": "articles",
@@ -59,16 +59,7 @@
                       "self": "http://testserver/articles/2d1686b9-6a5d-44a3-b707-0f4cafa842b5/relationships/comments/",
                       "related": "http://testserver/articles/2d1686b9-6a5d-44a3-b707-0f4cafa842b5/comments/"
                     },
-                    "data": [
-                      {
-                        "type": "comments",
-                        "id": "d3c12007-8b90-4865-a42e-92b836a81f61"
-                      },
-                      {
-                        "type": "comments",
-                        "id": "d69c7caa-a93a-41f3-8ff2-1901710b6133"
-                      }
-                    ]
+                    "data": []
                   }
                 },
                 "links": {

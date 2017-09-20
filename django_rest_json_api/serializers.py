@@ -309,7 +309,27 @@ class JSONAPILinkSerializer(JSONAPIMetaContainerSerializer):
         return data
 
 
-class JSONAPILinksSerializer(serializers.Serializer):
+class JSONAPIPaginationLinksSerializer(serializers.Serializer):
+    """
+    The JSON API links required (MUST) for pagination.
+    """
+
+    # Pagination links
+    first = JSONAPILinkSerializer(
+        label='First Page', help_text='the first page of data',
+        required=False)
+    last = JSONAPILinkSerializer(
+        label='Last Page', help_text='the last page of data',
+        required=False)
+    prev = JSONAPILinkSerializer(
+        label='Prev Page', help_text='the previous page of data',
+        required=False, source='previous')
+    next = JSONAPILinkSerializer(
+        label='Next Page', help_text='the next page of data',
+        required=False)
+
+
+class JSONAPILinksSerializer(JSONAPIPaginationLinksSerializer):
     """
     Serializer for a JSON API links object.
     """
@@ -322,21 +342,6 @@ class JSONAPILinksSerializer(serializers.Serializer):
     related = JSONAPILinkSerializer(
         label='Related Resource Link',
         help_text='a related resource link',
-        required=False)
-
-    # Pagination links
-    # TODO integrate with DRF pagination
-    first = JSONAPILinkSerializer(
-        label='First Page', help_text='the first page of data',
-        required=False)
-    last = JSONAPILinkSerializer(
-        label='Last Page', help_text='the last page of data',
-        required=False)
-    prev = JSONAPILinkSerializer(
-        label='Prev Page', help_text='the previous page of data',
-        required=False)
-    next = JSONAPILinkSerializer(
-        label='Next Page', help_text='the next page of data',
         required=False)
 
     def to_representation(self, instance):
@@ -855,3 +860,41 @@ class JSONAPIDocumentSerializer(
         Delegate to the primary data serializer
         """
         return self.validated_data.serializer.save(**kwargs)
+
+
+pagination_links_serializer = JSONAPIPaginationLinksSerializer()
+pagination_source_attrs = {
+    field.source for field in pagination_links_serializer.fields.values()}
+pagination_source_attrs.add('results')
+
+
+class JSONAPIPaginationSerializer(
+        JSONAPILinkableSerializer, JSONAPIMetaContainerSerializer):
+    """
+    Transform DRF's pagination data to the JSON API format.
+
+    The schema is used only for documentation and introspection.  The actual
+    representation is managed manually.
+    """
+
+    def to_representation(self, instance):
+        """
+        Reconstitute the JSON API format adding pagination links.
+        """
+        data = instance['results']
+
+        # Supliment the links object with pagination data
+        links = data.setdefault('links', collections.OrderedDict())
+        for field_name, field in pagination_links_serializer.fields.items():
+            try:
+                links[field_name] = field.get_attribute(instance)
+            except serializers.SkipField:
+                links[field_name] = None
+
+        # Move everything else into the meta object
+        meta = data.setdefault('meta', collections.OrderedDict())
+        meta['pagination'] = {
+            key: value for key, value in instance.items()
+            if key not in pagination_source_attrs}
+
+        return data
