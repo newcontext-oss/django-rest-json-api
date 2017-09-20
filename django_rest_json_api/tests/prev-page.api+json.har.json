@@ -70,8 +70,8 @@
                 "type": "people",
                 "id": "e2fa493a-d689-4b88-8dde-b7290e1666d9",
                 "attributes": {
-                  "first_name": "Dan",
-                  "last_name": "Gebhardt"
+                  "first-name": "Dan",
+                  "last-name": "Gebhardt"
                 },
                 "links": {
                   "self": "http://testserver/people/e2fa493a-d689-4b88-8dde-b7290e1666d9/"

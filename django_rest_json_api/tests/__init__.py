@@ -6,6 +6,8 @@ from test_har import django_rest_har as test_har
 
 import re
 
+import inflection
+
 from django.core import validators
 
 from rest_framework import request
@@ -45,8 +47,9 @@ class JSONAPITestCase(test_har.HARTestCase):
             comment_jsonapi["relationships"]["author"]["data"]["id"]
             for comment_jsonapi in comments_jsonapi.values()}
         self.author = models.Person.objects.create(
-            uuid=self.author_jsonapi["id"],
-            **self.author_jsonapi["attributes"])
+            uuid=self.author_jsonapi["id"], **{
+                inflection.underscore(key): value for key, value
+                in self.author_jsonapi["attributes"].items()})
         person_uuids.remove(self.author_jsonapi["id"])
         models.Person.objects.bulk_create([
             models.Person(uuid=person_uuid) for person_uuid in person_uuids])

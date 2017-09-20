@@ -111,7 +111,6 @@ TODO
 
 Contributions for the following are particularly welcome:
 
-#. Support inflecting field/member names, e.g. ``inflection.dasherize()``
 #. ``...?sort=...`` `sort parameter`_ support
 #. ``...?filter=...`` `filter parameter`_ support
 #. ``...?include=...`` `included resources parameter`_ support

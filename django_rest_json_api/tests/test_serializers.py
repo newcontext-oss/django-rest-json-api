@@ -24,7 +24,8 @@ class DRFJSONAPISerializerTests(tests.JSONAPITestCase):
         The resource serializer desserializes JSON API resource identity.
         """
         resource_serializer = serializers.JSONAPIResourceSerializer(
-            data=self.content["data"][0])
+            data=self.content["data"][0],
+            field_inflectors=serializers.field_inflectors)
         resource_serializer.is_valid(raise_exception=True)
         article_serializer = example_serializers.ArticleSerializer(
             data=example_serializers.ArticleSerializer(

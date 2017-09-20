@@ -16,6 +16,7 @@ import inflection
 
 from django.db import models
 from django.utils import functional
+from django.utils import six
 
 from rest_framework.settings import api_settings
 from rest_framework import exceptions
@@ -24,6 +25,15 @@ from rest_framework import relations
 
 from drf_extra_fields import generic
 from drf_extra_fields import parameterized
+
+reverse_inflectors = {
+    inflection.singularize: inflection.pluralize,
+    inflection.pluralize: inflection.singularize,
+    inflection.dasherize: inflection.underscore,
+    inflection.underscore: inflection.dasherize,
+    inflection.parameterize: inflection.underscore,
+}
+field_inflectors = [inflection.parameterize]
 
 
 def flatten_error_details(data, source=''):
@@ -469,6 +479,18 @@ class JSONAPIResourceSerializer(
     primary = False
 
     json_api_reserved_fields = {'type', 'id'}
+    field_inflectors = field_inflectors
+
+    def __init__(
+            self, instance=None, data=serializers.empty,
+            field_inflectors=None, **kwargs):
+        """
+        Support specifying whether to use a flat URL string.
+        """
+        super(JSONAPIResourceSerializer, self).__init__(
+            instance=instance, data=data, **kwargs)
+        if field_inflectors is not None:
+            self.field_inflectors = field_inflectors
 
     def to_internal_value(self, data):
         """
@@ -477,6 +499,24 @@ class JSONAPIResourceSerializer(
         if isinstance(data, list):
             return super(
                 JSONAPIResourceSerializer, self).to_internal_value(data)
+
+        # De-inflect resource fields
+        attributes = self.fields['attributes'].get_value(data)
+        relationships = self.fields['relationships'].get_value(data)
+        for field, resource_fields in (
+                (self.fields['attributes'], attributes),
+                (self.fields['relationships'], relationships)):
+            try:
+                field.run_validation(resource_fields)
+            except (serializers.SkipField, exceptions.ValidationError):
+                # Skip de-inflection if validation would fail
+                continue
+            for resource_field in resource_fields.keys():
+                value = resource_fields.pop(resource_field)
+                for inflector in self.field_inflectors:
+                    resource_field = reverse_inflectors[inflector](
+                        resource_field)
+                resource_fields[resource_field] = value
 
         try:
             value = super(
@@ -506,8 +546,6 @@ class JSONAPIResourceSerializer(
         # include required and basic type validation
         errors = collections.OrderedDict()
 
-        attributes = self.fields['attributes'].get_value(data)
-        relationships = self.fields['relationships'].get_value(data)
         for member, jsonapi in (
                 ('attributes', attributes), ('relationships', relationships)):
             if jsonapi is serializers.empty:
@@ -565,11 +603,16 @@ class JSONAPIResourceSerializer(
                 continue
             if isinstance(field, (
                     relations.RelatedField, relations.ManyRelatedField)):
-                relationships[field_name] = field.get_attribute(
-                    data.serializer.instance)
+                fields = relationships
+                value = field.get_attribute(data.serializer.instance)
             else:
-                attributes[field_name] = field.get_value(data)
+                fields = attributes
+                value = field.get_value(data)
             del data[field_name]
+            # Inflect the field name
+            for inflector in self.field_inflectors:
+                field_name = inflector(six.text_type(field_name))
+            fields[field_name] = value
         data['attributes'] = attributes_field.to_representation(
             attributes)
         data['relationships'] = relationships_field.to_representation(
