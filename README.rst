@@ -128,12 +128,12 @@ TODO
 
 Contributions for the following are particularly welcome:
 
+#. Support DRF nested routers per the jsonapi.org relationship link examples
 #. ``...?filter=...`` `filter parameter`_ support
 #. ``...?include=...`` `included resources parameter`_ support
 #. ``...?fields=...`` `sparse fieldsets parameter`_ support
 #. Return ``400 Bad Request`` on `non-compliant query parameters`_
 #. Support DB pk ID for the JSON API resource ``id`` as an option
-#. Support DRF nested routers per the jsonapi.org relationship link examples
 #. Add coverage and support for non-model serializers
 #. Figure out what to do with the code implementing the the JSON API standard
    as DRF validation that isn't appropriate for ``to_internal_value()``.
