@@ -41,7 +41,8 @@ can be imported as if from ``rest_framework.generics`` and
         queryset = models.MyModel.objects.all()
         serializer_class = serializers.MySerializer
 
-Finally, the JSON API renderer and parser must be enabled in your settings:
+Finally, the JSON API renderer and parser must be enabled in your settings and
+set the default ordering parameter to match the JSON API standard:
 
 .. code:: python
 
@@ -59,6 +60,9 @@ Finally, the JSON API renderer and parser must be enabled in your settings:
     ...
         ),
     ...
+    'ORDERING_PARAM': 'sort',
+    ...
+
 
 ``django_rest_json_api`` also provides the following for re-use in other DRF
 projects:
@@ -111,7 +115,6 @@ TODO
 
 Contributions for the following are particularly welcome:
 
-#. ``...?sort=...`` `sort parameter`_ support
 #. ``...?filter=...`` `filter parameter`_ support
 #. ``...?include=...`` `included resources parameter`_ support
 #. ``...?fields=...`` `sparse fieldsets parameter`_ support
