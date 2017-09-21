@@ -63,6 +63,19 @@ set the default ordering parameter to match the JSON API standard:
     'ORDERING_PARAM': 'sort',
     ...
 
+You may optionally also include more pagination information using the
+pagination classes in ``django_rest_json_api.pagination``.  These will affect
+all formats, not just the JSON API renerer/parser:
+
+.. code:: python
+
+    ...
+    REST_FRAMEWORK = {
+    ...
+    'DEFAULT_PAGINATION_CLASS':
+    'django_rest_json_api.pagination.PageNumberPagination',
+    ...
+
 
 ``django_rest_json_api`` also provides the following for re-use in other DRF
 projects:
