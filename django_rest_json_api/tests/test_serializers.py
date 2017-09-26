@@ -110,6 +110,22 @@ class DRFJSONAPISerializerTests(tests.JSONAPITestCase):
             self.content["data"][0],
             'Wrong serialized representation')
 
+    def test_resource_representation_skipped_fields(self):
+        """
+        The resource serializer handles skipped fields.
+        """
+        resource_serializer = serializers.JSONAPIResourceSerializer(
+            instance=models.Article.objects.create(title=self.article.title),
+            context=dict(request=self.article_request))
+        self.assertNotIn(
+            'description',
+            resource_serializer.data['attributes'],
+            'Skipped field in serialized representation')
+        self.assertNotIn(
+            'author',
+            resource_serializer.data['relationships'],
+            'Skipped field in serialized representation')
+
     def test_link_as_url_string(self):
         """
         The link serializer accepts an argument to use URL strings.

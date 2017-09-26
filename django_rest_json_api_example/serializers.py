@@ -22,7 +22,7 @@ class ArticleSerializer(relations.UUIDModelSerializer):
     class Meta(relations.UUIDModelSerializer.Meta):
         model = models.Article
         exclude = None
-        fields = ('id', 'title', 'author', 'comments')
+        fields = ('id', 'title', 'description', 'author', 'comments')
 
     title = serializers.CharField(min_length=3)
 

@@ -604,11 +604,16 @@ class JSONAPIResourceSerializer(
             if isinstance(field, (
                     relations.RelatedField, relations.ManyRelatedField)):
                 fields = relationships
-                value = field.get_attribute(data.serializer.instance)
+                try:
+                    value = field.get_attribute(data.serializer.instance)
+                except serializers.SkipField:
+                    continue
             else:
                 fields = attributes
                 value = field.get_value(data)
-            del data[field_name]
+                if value is serializers.empty:
+                    continue
+            data.pop(field_name, None)
             # Inflect the field name
             for inflector in self.field_inflectors:
                 field_name = inflector(six.text_type(field_name))

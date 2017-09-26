@@ -24,7 +24,8 @@ class Article(models.Model):
 
     uuid = models.UUIDField(default=uuid.uuid4())
     title = models.CharField(max_length=255)
-    author = models.ForeignKey(Person, blank=False)
+    description = models.CharField(max_length=255, blank=True)
+    author = models.ForeignKey(Person, null=True, blank=True)
 
 
 class Comment(models.Model):
