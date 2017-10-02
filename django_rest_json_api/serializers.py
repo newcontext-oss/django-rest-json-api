@@ -618,10 +618,12 @@ class JSONAPIResourceSerializer(
             for inflector in self.field_inflectors:
                 field_name = inflector(six.text_type(field_name))
             fields[field_name] = value
-        data['attributes'] = attributes_field.to_representation(
-            attributes)
-        data['relationships'] = relationships_field.to_representation(
-            relationships)
+        if attributes:
+            data['attributes'] = attributes_field.to_representation(
+                attributes)
+        if relationships:
+            data['relationships'] = relationships_field.to_representation(
+                relationships)
 
         return data
 
